@@ -1,6 +1,6 @@
 import { Unit } from "./unit.js";
 import { urand, clamp } from "./math.js";
-var MeleeHitOutcome;
+export var MeleeHitOutcome;
 (function (MeleeHitOutcome) {
     MeleeHitOutcome[MeleeHitOutcome["MELEE_HIT_EVADE"] = 0] = "MELEE_HIT_EVADE";
     MeleeHitOutcome[MeleeHitOutcome["MELEE_HIT_MISS"] = 1] = "MELEE_HIT_MISS";
@@ -13,17 +13,17 @@ var MeleeHitOutcome;
     MeleeHitOutcome[MeleeHitOutcome["MELEE_HIT_NORMAL"] = 8] = "MELEE_HIT_NORMAL";
     MeleeHitOutcome[MeleeHitOutcome["MELEE_HIT_BLOCK_CRIT"] = 9] = "MELEE_HIT_BLOCK_CRIT";
 })(MeleeHitOutcome || (MeleeHitOutcome = {}));
-const hitOutcomeString = {
+export const hitOutcomeString = {
     [MeleeHitOutcome.MELEE_HIT_EVADE]: 'evade',
-    [MeleeHitOutcome.MELEE_HIT_MISS]: 'miss',
-    [MeleeHitOutcome.MELEE_HIT_DODGE]: 'dodge',
-    [MeleeHitOutcome.MELEE_HIT_BLOCK]: 'block',
-    [MeleeHitOutcome.MELEE_HIT_PARRY]: 'parry',
-    [MeleeHitOutcome.MELEE_HIT_GLANCING]: 'glancing',
-    [MeleeHitOutcome.MELEE_HIT_CRIT]: 'crit',
-    [MeleeHitOutcome.MELEE_HIT_CRUSHING]: 'crushing',
-    [MeleeHitOutcome.MELEE_HIT_NORMAL]: 'normal',
-    [MeleeHitOutcome.MELEE_HIT_BLOCK_CRIT]: 'block crit',
+    [MeleeHitOutcome.MELEE_HIT_MISS]: 'misses',
+    [MeleeHitOutcome.MELEE_HIT_DODGE]: 'is dodged',
+    [MeleeHitOutcome.MELEE_HIT_BLOCK]: 'is blocked',
+    [MeleeHitOutcome.MELEE_HIT_PARRY]: 'is parried',
+    [MeleeHitOutcome.MELEE_HIT_GLANCING]: 'glances',
+    [MeleeHitOutcome.MELEE_HIT_CRIT]: 'crits',
+    [MeleeHitOutcome.MELEE_HIT_CRUSHING]: 'crushes',
+    [MeleeHitOutcome.MELEE_HIT_NORMAL]: 'hits',
+    [MeleeHitOutcome.MELEE_HIT_BLOCK_CRIT]: 'is block crit',
 };
 const skillDiffToReduction = [1, 0.9926, 0.9840, 0.9742, 0.9629, 0.9500, 0.9351, 0.9180, 0.8984, 0.8759, 0.8500, 0.8203, 0.7860, 0.7469, 0.7018];
 export class Player extends Unit {
@@ -155,9 +155,11 @@ export class Player extends Unit {
     updateMeleeAttackingState(time) {
         let damageDone = 0;
         let hitOutcome;
+        let is_mh = false;
         if (this.target) {
             if (time >= this.mh.nextSwingTime) {
-                [damageDone, hitOutcome] = this.calculateMeleeDamage(this.target, true);
+                is_mh = true;
+                [damageDone, hitOutcome] = this.calculateMeleeDamage(this.target, is_mh);
                 this.mh.nextSwingTime = time + this.mh.speed * 1000;
                 if (this.oh.nextSwingTime < time + 200) {
                     console.log('delaying OH swing', time + 200 - this.oh.nextSwingTime);
@@ -165,7 +167,7 @@ export class Player extends Unit {
                 }
             }
             else if (time >= this.oh.nextSwingTime) {
-                [damageDone, hitOutcome] = this.calculateMeleeDamage(this.target, false);
+                [damageDone, hitOutcome] = this.calculateMeleeDamage(this.target, is_mh);
                 this.oh.nextSwingTime = time + this.oh.speed * 1000;
                 if (this.mh.nextSwingTime < time + 200) {
                     console.log('delaying MH swing', time + 200 - this.mh.nextSwingTime);
@@ -173,7 +175,7 @@ export class Player extends Unit {
                 }
             }
         }
-        return [damageDone, hitOutcome];
+        return [damageDone, hitOutcome, is_mh];
     }
 }
 //# sourceMappingURL=player.js.map

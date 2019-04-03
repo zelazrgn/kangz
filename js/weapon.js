@@ -9,7 +9,7 @@ export class Weapon {
         this.min = min;
         this.max = max;
         this.speed = speed;
-        this.nextSwingTime = 0;
+        this.nextSwingTime = 100;
     }
     get dps() {
         return (this.min + this.max) / 2 / this.speed;

@@ -1,6 +1,7 @@
 import { Warrior } from "./warrior.js";
 import { Weapon, WeaponType } from "./weapon.js";
 import { Unit } from "./unit.js";
+import { MeleeHitOutcome, hitOutcomeString } from "./player.js"
 
 const logEl = document.getElementById('logContainer');
 const dpsEl = document.getElementById('dpsContainer');
@@ -22,14 +23,24 @@ function update() {
     start = start || time;
 
     const duration = (time - start) * simulationSpeed;
-    const [damageDone, hitOutcome] = me.updateMeleeAttackingState(duration);
+    const [damageDone, hitOutcome, is_mh] = me.updateMeleeAttackingState(duration);
 
     totalDamage += damageDone;
 
     if (hitOutcome) {
         const newEl = document.createElement("div");
-        newEl.textContent = `${hitOutcome} - ${damageDone}`;
+        newEl.textContent = `Your ${is_mh ? 'main-hand' : 'off-hand'} ${hitOutcomeString[hitOutcome]}`;
+        if (![MeleeHitOutcome.MELEE_HIT_MISS, MeleeHitOutcome.MELEE_HIT_DODGE].includes(hitOutcome)) {
+            newEl.textContent += ` for ${damageDone}`;
+        }
+        newEl.textContent += '.';
+
+        const atScrollBottom = logEl.scrollHeight - logEl.scrollTop === logEl.clientHeight;
         logEl.appendChild(newEl);
+
+        if (atScrollBottom) {
+            logEl.scrollTop = logEl.scrollHeight;
+        }
     }
 
     requestAnimationFrame(update);
@@ -41,5 +52,5 @@ setInterval(() => {
 
     const dps = totalDamage / duration * 1000;
 
-    dpsEl.textContent = `${dps}`;
+    dpsEl.textContent = `DPS: ${dps.toFixed(1)}`;
 }, 1000);

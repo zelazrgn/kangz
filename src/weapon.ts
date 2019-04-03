@@ -15,7 +15,7 @@ export class Weapon {
         this.min = min;
         this.max = max;
         this.speed = speed;
-        this.nextSwingTime = 0;
+        this.nextSwingTime = 100; // TODO - need to reset this properly if ever want to simulate fights where you run out
     }
 
     get dps() {
