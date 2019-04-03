@@ -13,22 +13,10 @@ export var MeleeHitOutcome;
     MeleeHitOutcome[MeleeHitOutcome["MELEE_HIT_NORMAL"] = 8] = "MELEE_HIT_NORMAL";
     MeleeHitOutcome[MeleeHitOutcome["MELEE_HIT_BLOCK_CRIT"] = 9] = "MELEE_HIT_BLOCK_CRIT";
 })(MeleeHitOutcome || (MeleeHitOutcome = {}));
-export const hitOutcomeString = {
-    [MeleeHitOutcome.MELEE_HIT_EVADE]: 'evade',
-    [MeleeHitOutcome.MELEE_HIT_MISS]: 'misses',
-    [MeleeHitOutcome.MELEE_HIT_DODGE]: 'is dodged',
-    [MeleeHitOutcome.MELEE_HIT_BLOCK]: 'is blocked',
-    [MeleeHitOutcome.MELEE_HIT_PARRY]: 'is parried',
-    [MeleeHitOutcome.MELEE_HIT_GLANCING]: 'glances',
-    [MeleeHitOutcome.MELEE_HIT_CRIT]: 'crits',
-    [MeleeHitOutcome.MELEE_HIT_CRUSHING]: 'crushes',
-    [MeleeHitOutcome.MELEE_HIT_NORMAL]: 'hits',
-    [MeleeHitOutcome.MELEE_HIT_BLOCK_CRIT]: 'is block crit',
-};
 const skillDiffToReduction = [1, 0.9926, 0.9840, 0.9742, 0.9629, 0.9500, 0.9351, 0.9180, 0.8984, 0.8759, 0.8500, 0.8203, 0.7860, 0.7469, 0.7018];
 export class Player extends Unit {
     constructor(armor, baseAttackPower, mh, oh) {
-        super(armor);
+        super(60, armor);
         this.baseAttackPower = baseAttackPower;
         this.mh = mh;
         this.oh = oh;
@@ -91,15 +79,15 @@ export class Player extends Unit {
         const roll = urand(0, 10000);
         let sum = 0;
         let tmp = 0;
-        const miss_chance = Math.trunc(this.calculateMissChance(victim, is_mh) * 100);
-        const dodge_chance = Math.trunc(victim.dodgeChance * 100);
-        const crit_chance = Math.trunc(this.calculateCritChance(victim) * 100);
-        const skilBonus = 4 * (this.calculateWeaponSkillValue(is_mh) - 300);
+        const miss_chance = Math.round(this.calculateMissChance(victim, is_mh) * 100);
+        const dodge_chance = Math.round(victim.dodgeChance * 100);
+        const crit_chance = Math.round(this.calculateCritChance(victim) * 100);
+        const skillBonus = 4 * (this.calculateWeaponSkillValue(is_mh) - victim.maxSkillForLevel);
         tmp = miss_chance;
         if (tmp > 0 && roll < (sum += tmp)) {
             return MeleeHitOutcome.MELEE_HIT_MISS;
         }
-        tmp = dodge_chance - skilBonus;
+        tmp = dodge_chance - skillBonus;
         if (tmp > 0 && roll < (sum += tmp)) {
             return MeleeHitOutcome.MELEE_HIT_DODGE;
         }
@@ -116,7 +104,7 @@ export class Player extends Unit {
     }
     calculateMeleeDamage(victim, is_mh) {
         const rawDamage = this.calculateRawDamage(is_mh);
-        const armorReduced = victim.calculateArmorReducedDamage(rawDamage);
+        const armorReduced = victim.calculateArmorReducedDamage(rawDamage, this);
         const hitOutcome = this.rollMeleeHitOutcome(victim, is_mh);
         let damage = armorReduced;
         let proc = false;

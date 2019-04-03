@@ -1,18 +1,21 @@
 import { clamp } from "./math.js";
 export class Unit {
-    constructor(armor) {
+    constructor(level, armor) {
+        this.level = level;
         this.armor = armor;
     }
+    get maxSkillForLevel() {
+        return this.level * 5;
+    }
     get defenseSkill() {
-        return 315;
+        return this.maxSkillForLevel;
     }
     get dodgeChance() {
         return 5;
     }
-    calculateArmorReducedDamage(damage) {
+    calculateArmorReducedDamage(damage, attacker) {
         const armor = Math.max(0, this.armor);
-        const level = 60;
-        let tmpvalue = 0.1 * armor / ((8.5 * level) + 40);
+        let tmpvalue = 0.1 * armor / ((8.5 * attacker.level) + 40);
         tmpvalue /= (1 + tmpvalue);
         const armorModifier = clamp(tmpvalue, 0, 0.75);
         return Math.max(1, damage - (damage * armorModifier));

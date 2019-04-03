@@ -1,14 +1,20 @@
 import { clamp } from "./math.js";
 
 export class Unit {
+    level: number;
     armor: number;
 
-    constructor(armor: number) {
+    constructor(level: number, armor: number) {
+        this.level = level;
         this.armor = armor;
     }
 
+    get maxSkillForLevel() {
+        return this.level * 5;
+    }
+
     get defenseSkill() {
-        return 315;
+        return this.maxSkillForLevel;
     }
 
     get dodgeChance() {
@@ -16,12 +22,10 @@ export class Unit {
         return 5;
     }
 
-    calculateArmorReducedDamage(damage: number) {
+    calculateArmorReducedDamage(damage: number, attacker: Unit) {
         const armor = Math.max(0, this.armor);
-
-        const level = 60; // TODO - should it be attacker level or this units level?
         
-        let tmpvalue = 0.1 * armor  / ((8.5 * level) + 40);
+        let tmpvalue = 0.1 * armor  / ((8.5 * attacker.level) + 40);
         tmpvalue /= (1 + tmpvalue);
 
         const armorModifier = clamp(tmpvalue, 0, 0.75);

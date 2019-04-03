@@ -1,13 +1,25 @@
 import { Warrior } from "./warrior.js";
 import { Weapon, WeaponType } from "./weapon.js";
 import { Unit } from "./unit.js";
-import { MeleeHitOutcome, hitOutcomeString } from "./player.js";
+import { MeleeHitOutcome } from "./player.js";
+const hitOutcomeString = {
+    [MeleeHitOutcome.MELEE_HIT_EVADE]: 'evade',
+    [MeleeHitOutcome.MELEE_HIT_MISS]: 'misses',
+    [MeleeHitOutcome.MELEE_HIT_DODGE]: 'is dodged',
+    [MeleeHitOutcome.MELEE_HIT_BLOCK]: 'is blocked',
+    [MeleeHitOutcome.MELEE_HIT_PARRY]: 'is parried',
+    [MeleeHitOutcome.MELEE_HIT_GLANCING]: 'glances',
+    [MeleeHitOutcome.MELEE_HIT_CRIT]: 'crits',
+    [MeleeHitOutcome.MELEE_HIT_CRUSHING]: 'crushes',
+    [MeleeHitOutcome.MELEE_HIT_NORMAL]: 'hits',
+    [MeleeHitOutcome.MELEE_HIT_BLOCK_CRIT]: 'is block crit',
+};
 const logEl = document.getElementById('logContainer');
 const dpsEl = document.getElementById('dpsContainer');
 const emp_demo = new Weapon(WeaponType.MACE, 94, 175, 2.80);
 const anubisath = new Weapon(WeaponType.MACE, 66, 123, 1.80);
 const me = new Warrior(5000, 2000, emp_demo, anubisath);
-const boss = new Unit(0);
+const boss = new Unit(63, 0);
 me.target = boss;
 let start = null;
 const simulationSpeed = 1;
