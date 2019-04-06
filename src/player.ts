@@ -17,6 +17,21 @@ export enum MeleeHitOutcome {
     MELEE_HIT_BLOCK_CRIT,
 }
 
+type HitOutComeStringMap = {[TKey in MeleeHitOutcome]: string};
+
+const hitOutcomeString: HitOutComeStringMap = {
+    [MeleeHitOutcome.MELEE_HIT_EVADE]: 'evade',
+    [MeleeHitOutcome.MELEE_HIT_MISS]: 'misses',
+    [MeleeHitOutcome.MELEE_HIT_DODGE]: 'is dodged',
+    [MeleeHitOutcome.MELEE_HIT_BLOCK]: 'is blocked',
+    [MeleeHitOutcome.MELEE_HIT_PARRY]: 'is parried',
+    [MeleeHitOutcome.MELEE_HIT_GLANCING]: 'glances',
+    [MeleeHitOutcome.MELEE_HIT_CRIT]: 'crits',
+    [MeleeHitOutcome.MELEE_HIT_CRUSHING]: 'crushes',
+    [MeleeHitOutcome.MELEE_HIT_NORMAL]: 'hits',
+    [MeleeHitOutcome.MELEE_HIT_BLOCK_CRIT]: 'is block crit',
+};
+
 const skillDiffToReduction = [1, 0.9926, 0.9840, 0.9742, 0.9629, 0.9500, 0.9351, 0.9180, 0.8984, 0.8759, 0.8500, 0.8203, 0.7860, 0.7469, 0.7018];
 
 export class Player extends Unit {
@@ -30,6 +45,8 @@ export class Player extends Unit {
 
     buffManager: BuffManager;
 
+    log?: (arg0: number, arg1: string) => void;
+
     constructor(mh: Weapon, oh: Weapon, stats: StatValues, logCallback?: (arg0: number, arg1: string) => void) {
         super(60, 0);
 
@@ -40,6 +57,8 @@ export class Player extends Unit {
 
         this.nextGCDTime = 0;
         this.extraAttackCount = 0;
+
+        this.log = logCallback;
     }
 
     protected calculateWeaponSkillValue(is_mh: boolean) {
@@ -215,6 +234,15 @@ export class Player extends Unit {
         const [thisWeapon, otherWeapon] = is_mh ? [this.mh, this.oh] : [this.oh, this.mh]; 
 
         const [damageDone, hitOutcome] = this.calculateMeleeDamage(target, is_mh);
+
+        if (this.log) {
+            let hitStr = `Your ${is_mh ? 'main-hand' : 'off-hand'} ${hitOutcomeString[hitOutcome]}`;
+            if (![MeleeHitOutcome.MELEE_HIT_MISS, MeleeHitOutcome.MELEE_HIT_DODGE].includes(hitOutcome)) {
+                hitStr += ` for ${damageDone}`;
+            }
+            this.log(time, hitStr);
+        }
+
         // called before updating swing time because a proc such as flurry could change swing time
         this.updateProcs(time, is_mh, hitOutcome, damageDone);
 

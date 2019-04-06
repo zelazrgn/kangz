@@ -15,6 +15,18 @@ export var MeleeHitOutcome;
     MeleeHitOutcome[MeleeHitOutcome["MELEE_HIT_NORMAL"] = 8] = "MELEE_HIT_NORMAL";
     MeleeHitOutcome[MeleeHitOutcome["MELEE_HIT_BLOCK_CRIT"] = 9] = "MELEE_HIT_BLOCK_CRIT";
 })(MeleeHitOutcome || (MeleeHitOutcome = {}));
+const hitOutcomeString = {
+    [MeleeHitOutcome.MELEE_HIT_EVADE]: 'evade',
+    [MeleeHitOutcome.MELEE_HIT_MISS]: 'misses',
+    [MeleeHitOutcome.MELEE_HIT_DODGE]: 'is dodged',
+    [MeleeHitOutcome.MELEE_HIT_BLOCK]: 'is blocked',
+    [MeleeHitOutcome.MELEE_HIT_PARRY]: 'is parried',
+    [MeleeHitOutcome.MELEE_HIT_GLANCING]: 'glances',
+    [MeleeHitOutcome.MELEE_HIT_CRIT]: 'crits',
+    [MeleeHitOutcome.MELEE_HIT_CRUSHING]: 'crushes',
+    [MeleeHitOutcome.MELEE_HIT_NORMAL]: 'hits',
+    [MeleeHitOutcome.MELEE_HIT_BLOCK_CRIT]: 'is block crit',
+};
 const skillDiffToReduction = [1, 0.9926, 0.9840, 0.9742, 0.9629, 0.9500, 0.9351, 0.9180, 0.8984, 0.8759, 0.8500, 0.8203, 0.7860, 0.7469, 0.7018];
 export class Player extends Unit {
     constructor(mh, oh, stats, logCallback) {
@@ -24,6 +36,7 @@ export class Player extends Unit {
         this.oh = new WeaponEquiped(oh, this.buffManager);
         this.nextGCDTime = 0;
         this.extraAttackCount = 0;
+        this.log = logCallback;
     }
     calculateWeaponSkillValue(is_mh) {
         const weapon = is_mh ? this.mh : this.oh;
@@ -157,6 +170,13 @@ export class Player extends Unit {
     swingWeapon(time, target, is_mh) {
         const [thisWeapon, otherWeapon] = is_mh ? [this.mh, this.oh] : [this.oh, this.mh];
         const [damageDone, hitOutcome] = this.calculateMeleeDamage(target, is_mh);
+        if (this.log) {
+            let hitStr = `Your ${is_mh ? 'main-hand' : 'off-hand'} ${hitOutcomeString[hitOutcome]}`;
+            if (![MeleeHitOutcome.MELEE_HIT_MISS, MeleeHitOutcome.MELEE_HIT_DODGE].includes(hitOutcome)) {
+                hitStr += ` for ${damageDone}`;
+            }
+            this.log(time, hitStr);
+        }
         this.updateProcs(time, is_mh, hitOutcome, damageDone);
         console.log('weapon speed', is_mh, thisWeapon.weapon.speed / this.buffManager.stats.haste);
         thisWeapon.nextSwingTime = time + thisWeapon.weapon.speed / this.buffManager.stats.haste * 1000;

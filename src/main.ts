@@ -5,21 +5,6 @@ import { MeleeHitOutcome } from "./player.js"
 import { warchiefs } from "./buff.js";
 import { StatValues } from "./stats.js";
 
-type HitOutComeStringMap = {[TKey in MeleeHitOutcome]: string};
-
-const hitOutcomeString: HitOutComeStringMap = {
-    [MeleeHitOutcome.MELEE_HIT_EVADE]: 'evade',
-    [MeleeHitOutcome.MELEE_HIT_MISS]: 'misses',
-    [MeleeHitOutcome.MELEE_HIT_DODGE]: 'is dodged',
-    [MeleeHitOutcome.MELEE_HIT_BLOCK]: 'is blocked',
-    [MeleeHitOutcome.MELEE_HIT_PARRY]: 'is parried',
-    [MeleeHitOutcome.MELEE_HIT_GLANCING]: 'glances',
-    [MeleeHitOutcome.MELEE_HIT_CRIT]: 'crits',
-    [MeleeHitOutcome.MELEE_HIT_CRUSHING]: 'crushes',
-    [MeleeHitOutcome.MELEE_HIT_NORMAL]: 'hits',
-    [MeleeHitOutcome.MELEE_HIT_BLOCK_CRIT]: 'is block crit',
-};
-
 const logEl = document.getElementById('logContainer')!;
 const dpsEl = document.getElementById('dpsContainer')!;
 
@@ -94,15 +79,6 @@ class RealTimeSim {
             const [damageDone, hitOutcome, is_mh] = me.updateMeleeAttackingState(duration);
 
             totalDamage += damageDone;
-
-            if (hitOutcome) {
-                let hitStr = `Your ${is_mh ? 'main-hand' : 'off-hand'} ${hitOutcomeString[hitOutcome]}`;
-                if (![MeleeHitOutcome.MELEE_HIT_MISS, MeleeHitOutcome.MELEE_HIT_DODGE].includes(hitOutcome)) {
-                    hitStr += ` for ${damageDone}`;
-                }
-                log(duration, hitStr);
-            }
-
             requestAnimationFrame(this.update);
         }
     }
