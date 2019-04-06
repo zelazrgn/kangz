@@ -1,7 +1,9 @@
 import { Warrior } from "./warrior.js";
-import { Weapon, WeaponType } from "./weapon.js";
+import { emp_demo, anubisath, crusaderBuffMHProc, crusaderBuffOHProc } from "./weapon.js";
 import { Unit } from "./unit.js";
 import { MeleeHitOutcome } from "./player.js"
+import { warchiefs } from "./buff.js";
+import { StatValues } from "./stats.js";
 
 type HitOutComeStringMap = {[TKey in MeleeHitOutcome]: string};
 
@@ -18,54 +20,109 @@ const hitOutcomeString: HitOutComeStringMap = {
     [MeleeHitOutcome.MELEE_HIT_BLOCK_CRIT]: 'is block crit',
 };
 
-const logEl = document.getElementById('logContainer');
-const dpsEl = document.getElementById('dpsContainer');
+const logEl = document.getElementById('logContainer')!;
+const dpsEl = document.getElementById('dpsContainer')!;
 
+const statContainerEL = document.getElementById('stats')!;
+statContainerEL.getElementsByTagName("input");
 
-const emp_demo = new Weapon(WeaponType.MACE, 94, 175, 2.80);
-const anubisath = new Weapon(WeaponType.MACE, 66, 123, 1.80);
+const statEls: {[index: string]: HTMLInputElement} = {};
 
-const me = new Warrior(5000, 2000, emp_demo, anubisath);
-const boss = new Unit(63, 0);
-me.target = boss;
+for (let el of statContainerEL.getElementsByTagName("input")) {
+    statEls[el.name] = el;
+}
 
-let start: number = null;
-const simulationSpeed = 1;
-let totalDamage = 0;
+function log(time: number, str: string) {
+    const newEl = document.createElement("div");
 
-function update() {
-    const time = performance.now();
-    start = start || time;
+    newEl.textContent = `${(time / 1000).toFixed(3)} ${str}.`;
 
-    const duration = (time - start) * simulationSpeed;
-    const [damageDone, hitOutcome, is_mh] = me.updateMeleeAttackingState(duration);
+    const atScrollBottom = logEl.scrollHeight - logEl.scrollTop === logEl.clientHeight;
+    logEl.appendChild(newEl);
 
-    totalDamage += damageDone;
+    if (atScrollBottom) {
+        logEl.scrollTop = logEl.scrollHeight;
+    }
+}
 
-    if (hitOutcome) {
-        const newEl = document.createElement("div");
-        newEl.textContent = `Your ${is_mh ? 'main-hand' : 'off-hand'} ${hitOutcomeString[hitOutcome]}`;
-        if (![MeleeHitOutcome.MELEE_HIT_MISS, MeleeHitOutcome.MELEE_HIT_DODGE].includes(hitOutcome)) {
-            newEl.textContent += ` for ${damageDone}`;
-        }
-        newEl.textContent += '.';
+function loadStats() {
+    const res: StatValues = {};
+    res.ap = parseInt(statEls.ap!.value);
+    res.str = parseInt(statEls.str!.value);
+    res.agi = parseInt(statEls.agi!.value);
+    res.hit = parseInt(statEls.hit!.value);
+    res.crit = parseInt(statEls.crit!.value);
 
-        const atScrollBottom = logEl.scrollHeight - logEl.scrollTop === logEl.clientHeight;
-        logEl.appendChild(newEl);
+    return res;
+}
 
-        if (atScrollBottom) {
-            logEl.scrollTop = logEl.scrollHeight;
+class RealTimeSim {
+    protected update: () => void;
+    protected requestStop = false;
+
+    constructor() {
+        const me = new Warrior(emp_demo, anubisath, loadStats(), log);
+        me.buffManager.add(warchiefs, 0);
+        me.mh.addProc(crusaderBuffMHProc);
+        me.oh!.addProc(crusaderBuffOHProc);
+
+        const boss = new Unit(63, 200);
+        me.target = boss;
+
+        let start: number;
+        const simulationSpeed = 1;
+        let totalDamage = 0;
+
+        const printDPS = setInterval(() => {
+            const duration = (performance.now() - start) * simulationSpeed;
+
+            const dps = totalDamage / duration * 1000;
+
+            dpsEl.textContent = `DPS: ${dps.toFixed(1)}`;
+        }, 1000);
+
+        this.update = () => {
+            if (this.requestStop) {
+                clearInterval(printDPS);
+                return;
+            }
+
+            const time = performance.now();
+            start = start || time;
+
+            const duration = (time - start) * simulationSpeed;
+            const [damageDone, hitOutcome, is_mh] = me.updateMeleeAttackingState(duration);
+
+            totalDamage += damageDone;
+
+            if (hitOutcome) {
+                let hitStr = `Your ${is_mh ? 'main-hand' : 'off-hand'} ${hitOutcomeString[hitOutcome]}`;
+                if (![MeleeHitOutcome.MELEE_HIT_MISS, MeleeHitOutcome.MELEE_HIT_DODGE].includes(hitOutcome)) {
+                    hitStr += ` for ${damageDone}`;
+                }
+                log(duration, hitStr);
+            }
+
+            requestAnimationFrame(this.update);
         }
     }
 
-    requestAnimationFrame(update);
+    start() {
+        requestAnimationFrame(this.update);
+    }
+
+    stop() {
+        this.requestStop = true;
+    }
 }
-requestAnimationFrame(update);
 
-setInterval(() => {
-    const duration = (performance.now() - start) * simulationSpeed;
+let currentSim = new RealTimeSim();
+currentSim.start();
 
-    const dps = totalDamage / duration * 1000;
-
-    dpsEl.textContent = `DPS: ${dps.toFixed(1)}`;
-}, 1000);
+document.getElementById('restartBtn')!.addEventListener('click', () => {
+    currentSim.stop();
+    logEl.innerHTML = "";
+    dpsEl.innerHTML = "";
+    currentSim = new RealTimeSim();
+    currentSim.start();
+});

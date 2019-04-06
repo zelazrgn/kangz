@@ -5,8 +5,9 @@
         "removeComments": true,
         "preserveConstEnums": true,
         "sourceMap": true,
-        "target": "es2016",
-        "outDir": "js"
+        "target": "es2017",
+        "outDir": "js",
+        "strict": true
     },
     "include": [
         "src/*"

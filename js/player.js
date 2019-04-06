@@ -1,5 +1,7 @@
+import { WeaponEquiped, WeaponType } from "./weapon.js";
 import { Unit } from "./unit.js";
 import { urand, clamp } from "./math.js";
+import { BuffManager } from "./buff.js";
 export var MeleeHitOutcome;
 (function (MeleeHitOutcome) {
     MeleeHitOutcome[MeleeHitOutcome["MELEE_HIT_EVADE"] = 0] = "MELEE_HIT_EVADE";
@@ -15,28 +17,33 @@ export var MeleeHitOutcome;
 })(MeleeHitOutcome || (MeleeHitOutcome = {}));
 const skillDiffToReduction = [1, 0.9926, 0.9840, 0.9742, 0.9629, 0.9500, 0.9351, 0.9180, 0.8984, 0.8759, 0.8500, 0.8203, 0.7860, 0.7469, 0.7018];
 export class Player extends Unit {
-    constructor(armor, baseAttackPower, mh, oh) {
-        super(60, armor);
-        this.baseAttackPower = baseAttackPower;
-        this.mh = mh;
-        this.oh = oh;
+    constructor(mh, oh, stats, logCallback) {
+        super(60, 0);
+        this.buffManager = new BuffManager(stats, logCallback);
+        this.mh = new WeaponEquiped(mh, this.buffManager);
+        this.oh = new WeaponEquiped(oh, this.buffManager);
+        this.nextGCDTime = 0;
+        this.extraAttackCount = 0;
     }
     calculateWeaponSkillValue(is_mh) {
         const weapon = is_mh ? this.mh : this.oh;
-        const weaponType = weapon.type;
-        return 305;
+        const weaponType = weapon.weapon.type;
+        if ([WeaponType.MACE, WeaponType.SWORD].includes(weaponType)) {
+            return 305;
+        }
+        else {
+            return 300;
+        }
     }
     calculateCritChance(victim) {
-        let crit = 5;
-        const items = 10;
-        const buffs = 5;
-        crit += items;
-        crit += buffs;
+        let crit = this.buffManager.stats.crit;
+        crit += this.buffManager.stats.agi * this.buffManager.stats.statMult / 20;
         crit -= (victim.defenseSkill - 300) * 0.04;
         return crit;
     }
     calculateMissChance(victim, is_mh) {
         let res = 5;
+        res -= this.buffManager.stats.hit;
         if (this.oh) {
             res += 19;
         }
@@ -62,14 +69,14 @@ export class Player extends Unit {
         }
     }
     calculateAttackPower() {
-        return this.baseAttackPower;
+        return 0;
     }
     calculateMinMaxDamage(is_mh) {
         const weapon = is_mh ? this.mh : this.oh;
-        const ap_bonus = this.calculateAttackPower() / 14 * weapon.speed;
+        const ap_bonus = this.calculateAttackPower() / 14 * weapon.weapon.speed;
         return [
-            Math.trunc(weapon.min + ap_bonus),
-            Math.trunc(weapon.max + ap_bonus)
+            Math.trunc(weapon.weapon.min + ap_bonus),
+            Math.trunc(weapon.weapon.max + ap_bonus)
         ];
     }
     calculateRawDamage(is_mh) {
@@ -138,29 +145,44 @@ export class Player extends Unit {
         }
         return [Math.trunc(damage), hitOutcome];
     }
-    updateProcs(is_mh, hitOutcome) {
+    updateProcs(time, is_mh, hitOutcome, damageDone) {
+        if (![MeleeHitOutcome.MELEE_HIT_MISS, MeleeHitOutcome.MELEE_HIT_DODGE].includes(hitOutcome)) {
+            const weapon = is_mh ? this.mh : this.oh;
+            weapon.proc(time);
+            if (this.extraAttackCount === 0) {
+                console.log("check for extra attack procs");
+            }
+        }
+    }
+    swingWeapon(time, target, is_mh) {
+        const [thisWeapon, otherWeapon] = is_mh ? [this.mh, this.oh] : [this.oh, this.mh];
+        const [damageDone, hitOutcome] = this.calculateMeleeDamage(target, is_mh);
+        this.updateProcs(time, is_mh, hitOutcome, damageDone);
+        console.log('weapon speed', is_mh, thisWeapon.weapon.speed / this.buffManager.stats.haste);
+        thisWeapon.nextSwingTime = time + thisWeapon.weapon.speed / this.buffManager.stats.haste * 1000;
+        if (otherWeapon && otherWeapon.nextSwingTime < time + 200) {
+            console.log(`delaying ${is_mh ? 'OH' : 'MH'} swing`, time + 200 - otherWeapon.nextSwingTime);
+            otherWeapon.nextSwingTime = time + 200;
+        }
+        return [damageDone, hitOutcome];
     }
     updateMeleeAttackingState(time) {
+        this.buffManager.removeExpiredBuffs(time);
+        while (this.extraAttackCount > 0) {
+            this.mh.nextSwingTime = time;
+            this.updateMeleeAttackingState(time);
+            this.extraAttackCount--;
+        }
         let damageDone = 0;
         let hitOutcome;
         let is_mh = false;
         if (this.target) {
             if (time >= this.mh.nextSwingTime) {
                 is_mh = true;
-                [damageDone, hitOutcome] = this.calculateMeleeDamage(this.target, is_mh);
-                this.mh.nextSwingTime = time + this.mh.speed * 1000;
-                if (this.oh.nextSwingTime < time + 200) {
-                    console.log('delaying OH swing', time + 200 - this.oh.nextSwingTime);
-                    this.oh.nextSwingTime = time + 200;
-                }
+                [damageDone, hitOutcome] = this.swingWeapon(time, this.target, is_mh);
             }
-            else if (time >= this.oh.nextSwingTime) {
-                [damageDone, hitOutcome] = this.calculateMeleeDamage(this.target, is_mh);
-                this.oh.nextSwingTime = time + this.oh.speed * 1000;
-                if (this.mh.nextSwingTime < time + 200) {
-                    console.log('delaying MH swing', time + 200 - this.mh.nextSwingTime);
-                    this.mh.nextSwingTime = time + 200;
-                }
+            else if (this.oh && time >= this.oh.nextSwingTime) {
+                [damageDone, hitOutcome] = this.swingWeapon(time, this.target, is_mh);
             }
         }
         return [damageDone, hitOutcome, is_mh];
