@@ -1,4 +1,19 @@
+#stats {
+    display: grid;
+    grid-template-columns: min-content 50px;
+    grid-column-gap: 10px;
+    text-align: right;
+}
+
 #logContainer {
+    font-family:
+        "SFMono-Regular",
+        Consolas,
+        "Liberation Mono",
+        Menlo,
+        Courier,
+        monospace;
+    font-size: 13px;
     height: 300px;
     overflow-y: scroll;
     border: 1px solid black;
