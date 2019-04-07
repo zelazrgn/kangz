@@ -9,29 +9,36 @@ class BuffApplication {
     }
 }
 export class BuffManager {
-    constructor(sv, logCallback) {
+    constructor(baseStats, log) {
         this.buffList = [];
-        this.stats = new Stats(sv);
-        this.logCallback = logCallback || (() => { });
+        this.baseStats = new Stats(baseStats);
+        this.stats = new Stats(this.baseStats);
+        this.log = log;
+    }
+    recalculateStats() {
+        this.stats.set(this.baseStats);
+        for (let { buff } of this.buffList) {
+            buff.apply(this.stats);
+        }
     }
     add(buff, applyTime) {
         for (let buffApp of this.buffList) {
             if (buffApp.buff === buff) {
-                this.logCallback(applyTime, `${buff.name} refreshed`);
+                if (this.log)
+                    this.log(applyTime, `${buff.name} refreshed`);
                 buffApp.refresh(applyTime);
                 return;
             }
         }
-        this.logCallback(applyTime, `${buff.name} gained`);
-        buff.add(this.stats);
+        if (this.log)
+            this.log(applyTime, `${buff.name} gained`);
         this.buffList.push(new BuffApplication(buff, applyTime));
     }
     remove(buff, time) {
         this.buffList = this.buffList.filter((buffapp) => {
             if (buffapp.buff === buff) {
-                this.logCallback(time, `${buff.name} lost`);
-                console.log('removed', buff.name);
-                buffapp.buff.remove(this.stats);
+                if (this.log)
+                    this.log(time, `${buff.name} lost`);
                 return false;
             }
             return true;
@@ -40,9 +47,8 @@ export class BuffManager {
     removeExpiredBuffs(time) {
         this.buffList = this.buffList.filter((buffapp) => {
             if (buffapp.expirationTime <= time) {
-                this.logCallback(time, `${buffapp.buff.name} expired`);
-                console.log(buffapp.buff.name, 'expired');
-                buffapp.buff.remove(this.stats);
+                if (this.log)
+                    this.log(time, `${buffapp.buff.name} expired`);
                 return false;
             }
             return true;
@@ -57,20 +63,12 @@ export class Buff {
         this.addF = apply;
         this.removeF = remove;
     }
-    add(stats) {
+    apply(stats) {
         if (this.stats) {
             stats.add(this.stats);
         }
         if (this.addF) {
             this.addF(stats);
-        }
-    }
-    remove(stats) {
-        if (this.stats) {
-            stats.remove(this.stats);
-        }
-        if (this.removeF) {
-            this.removeF(stats);
         }
     }
 }

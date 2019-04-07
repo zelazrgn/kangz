@@ -81,11 +81,11 @@ export class Player extends Unit {
         return crit;
     }
 
-    protected calculateMissChance(victim: Unit, is_mh: boolean) {
+    protected calculateMissChance(victim: Unit, is_mh: boolean, spell: boolean) {
         let res = 5;
         res -= this.buffManager.stats.hit;
 
-        if (this.oh) {
+        if (this.oh && !(is_mh && spell)) {
             res += 19;
         }
         
@@ -128,17 +128,17 @@ export class Player extends Unit {
         ];
     }
 
-    protected calculateRawDamage(is_mh: boolean) {
+    protected calculateRawDamage(is_mh: boolean, spell: boolean) {
         return urand(...this.calculateMinMaxDamage(is_mh));
     }
 
-    protected rollMeleeHitOutcome(victim: Unit, is_mh: boolean): MeleeHitOutcome {
+    protected rollMeleeHitOutcome(victim: Unit, is_mh: boolean, spell: boolean): MeleeHitOutcome {
         const roll = urand(0, 10000);
         let sum = 0;
         let tmp = 0;
 
         // rounding instead of truncating because 19.4 * 100 was truncating to 1939.
-        const miss_chance = Math.round(this.calculateMissChance(victim, is_mh) * 100);
+        const miss_chance = Math.round(this.calculateMissChance(victim, is_mh, spell) * 100);
         const dodge_chance = Math.round(victim.dodgeChance * 100);
         const crit_chance = Math.round(this.calculateCritChance(victim) * 100);
 
@@ -156,11 +156,13 @@ export class Player extends Unit {
             return MeleeHitOutcome.MELEE_HIT_DODGE;
         }
 
-        tmp = (10 + (victim.defenseSkill - 300) * 2) * 100;
-        tmp = clamp(tmp, 0, 4000);
-
-        if (roll < (sum += tmp)) {
-            return MeleeHitOutcome.MELEE_HIT_GLANCING;
+        if (!spell) {
+            tmp = (10 + (victim.defenseSkill - 300) * 2) * 100;
+            tmp = clamp(tmp, 0, 4000);
+    
+            if (roll < (sum += tmp)) {
+                return MeleeHitOutcome.MELEE_HIT_GLANCING;
+            }
         }
 
         tmp = crit_chance;
@@ -172,53 +174,53 @@ export class Player extends Unit {
         return MeleeHitOutcome.MELEE_HIT_NORMAL;
     }
 
-    protected calculateMeleeDamage(victim: Unit, is_mh: boolean): [number, MeleeHitOutcome] {
-        const rawDamage = this.calculateRawDamage(is_mh);
+    protected calculateMeleeDamage(victim: Unit, is_mh: boolean, spell: boolean): [number, MeleeHitOutcome, number, boolean] {
+        const rawDamage = this.calculateRawDamage(is_mh, spell);
 
         const armorReduced = victim.calculateArmorReducedDamage(rawDamage, this);
 
-        const hitOutcome = this.rollMeleeHitOutcome(victim, is_mh);
+        const hitOutcome = this.rollMeleeHitOutcome(victim, is_mh, spell);
 
         let damage = armorReduced;
-
-        let proc = false;
+        let cleanDamage = 0;
 
         switch (hitOutcome) {
             case MeleeHitOutcome.MELEE_HIT_MISS:
+            {
+                damage = 0;
+                break;
+            }
             case MeleeHitOutcome.MELEE_HIT_DODGE:
             {
                 damage = 0;
+                cleanDamage = rawDamage;
                 break;
             }
             case MeleeHitOutcome.MELEE_HIT_GLANCING:
             {
                 const reducePercent = this.calculateGlancingReduction(victim, is_mh);
-                damage = Math.trunc(reducePercent * damage);
+                damage = reducePercent * damage;
                 break;
             }
             case MeleeHitOutcome.MELEE_HIT_NORMAL:
             {
-                proc = true;
                 break;
             }
             case MeleeHitOutcome.MELEE_HIT_CRIT:
             {
-                // TODO - ignoring deep wounds, need to proc flurry
-                proc = true;
-
                 damage *= 2;
                 break;
             }
         }
 
         if (!is_mh) {
-            damage *= 0.625;
+            damage *= 0.625; // TODO - check talents, should be in warrior class
         }
 
-        return [Math.trunc(damage), hitOutcome];
+        return [damage, hitOutcome, cleanDamage, spell];
     }
 
-    protected updateProcs(time: number, is_mh: boolean, hitOutcome: MeleeHitOutcome, damageDone: number) {
+    protected updateProcs(time: number, is_mh: boolean, hitOutcome: MeleeHitOutcome, damageDone: number, cleanDamage: number, spell: boolean) {
         if (![MeleeHitOutcome.MELEE_HIT_MISS, MeleeHitOutcome.MELEE_HIT_DODGE].includes(hitOutcome)) {
             // TODO - what is the order of checking for procs like hoj and ironfoe and windfury
             const weapon = is_mh ? this.mh : this.oh!;
@@ -230,13 +232,16 @@ export class Player extends Unit {
         }
     }
 
-    protected swingWeapon(time: number, target: Unit, is_mh: boolean) {
+    protected swingWeapon(time: number, target: Unit, is_mh: boolean, spell?: boolean): [number, MeleeHitOutcome] {
         const [thisWeapon, otherWeapon] = is_mh ? [this.mh, this.oh] : [this.oh, this.mh]; 
 
-        const [damageDone, hitOutcome] = this.calculateMeleeDamage(target, is_mh);
+        let [damageDone, hitOutcome, cleanDamage, was_spell] = this.calculateMeleeDamage(target, is_mh, spell || false);
+        damageDone = Math.trunc(damageDone); // truncating here because warrior subclass builds on top of calculateMeleeDamage
+        cleanDamage = Math.trunc(cleanDamage);
 
         if (this.log) {
-            let hitStr = `Your ${is_mh ? 'main-hand' : 'off-hand'} ${hitOutcomeString[hitOutcome]}`;
+            // TODO - shouldn't have heroic strike string in player.ts
+            let hitStr = `Your ${was_spell ? 'Heroic Strike' : (is_mh ? 'main-hand' : 'off-hand')} ${hitOutcomeString[hitOutcome]}`;
             if (![MeleeHitOutcome.MELEE_HIT_MISS, MeleeHitOutcome.MELEE_HIT_DODGE].includes(hitOutcome)) {
                 hitStr += ` for ${damageDone}`;
             }
@@ -244,7 +249,7 @@ export class Player extends Unit {
         }
 
         // called before updating swing time because a proc such as flurry could change swing time
-        this.updateProcs(time, is_mh, hitOutcome, damageDone);
+        this.updateProcs(time, is_mh, hitOutcome, damageDone, cleanDamage, spell || false);
 
         console.log('weapon speed', is_mh, thisWeapon!.weapon.speed / this.buffManager.stats.haste);
         thisWeapon!.nextSwingTime = time + thisWeapon!.weapon.speed / this.buffManager.stats.haste * 1000;
@@ -259,12 +264,14 @@ export class Player extends Unit {
 
     updateMeleeAttackingState(time: number): [number, MeleeHitOutcome|undefined, boolean] {
         this.buffManager.removeExpiredBuffs(time);
+        this.buffManager.recalculateStats();
+        this.chooseAction(time);
 
-        while (this.extraAttackCount > 0) {
-            this.mh.nextSwingTime = time;
-            this.updateMeleeAttackingState(time);
-            this.extraAttackCount--;
-        }
+        // while (this.extraAttackCount > 0)  // TODO - this doesn't work yet
+        //     this.mh.nextSwingTime = time;
+        //     this.updateMeleeAttackingState(time); // TODO - I think this is usually the next server tick
+        //     this.extraAttackCount--;
+        // }
 
         let damageDone = 0;
         let hitOutcome: MeleeHitOutcome | undefined;
@@ -281,4 +288,6 @@ export class Player extends Unit {
 
         return [damageDone, hitOutcome, is_mh];
     }
+
+    chooseAction(time: number) {}
 }

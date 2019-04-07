@@ -54,10 +54,10 @@ export class Player extends Unit {
         crit -= (victim.defenseSkill - 300) * 0.04;
         return crit;
     }
-    calculateMissChance(victim, is_mh) {
+    calculateMissChance(victim, is_mh, spell) {
         let res = 5;
         res -= this.buffManager.stats.hit;
-        if (this.oh) {
+        if (this.oh && !(is_mh && spell)) {
             res += 19;
         }
         const skillDiff = this.calculateWeaponSkillValue(is_mh) - victim.defenseSkill;
@@ -92,14 +92,14 @@ export class Player extends Unit {
             Math.trunc(weapon.weapon.max + ap_bonus)
         ];
     }
-    calculateRawDamage(is_mh) {
+    calculateRawDamage(is_mh, spell) {
         return urand(...this.calculateMinMaxDamage(is_mh));
     }
-    rollMeleeHitOutcome(victim, is_mh) {
+    rollMeleeHitOutcome(victim, is_mh, spell) {
         const roll = urand(0, 10000);
         let sum = 0;
         let tmp = 0;
-        const miss_chance = Math.round(this.calculateMissChance(victim, is_mh) * 100);
+        const miss_chance = Math.round(this.calculateMissChance(victim, is_mh, spell) * 100);
         const dodge_chance = Math.round(victim.dodgeChance * 100);
         const crit_chance = Math.round(this.calculateCritChance(victim) * 100);
         const skillBonus = 4 * (this.calculateWeaponSkillValue(is_mh) - victim.maxSkillForLevel);
@@ -111,10 +111,12 @@ export class Player extends Unit {
         if (tmp > 0 && roll < (sum += tmp)) {
             return MeleeHitOutcome.MELEE_HIT_DODGE;
         }
-        tmp = (10 + (victim.defenseSkill - 300) * 2) * 100;
-        tmp = clamp(tmp, 0, 4000);
-        if (roll < (sum += tmp)) {
-            return MeleeHitOutcome.MELEE_HIT_GLANCING;
+        if (!spell) {
+            tmp = (10 + (victim.defenseSkill - 300) * 2) * 100;
+            tmp = clamp(tmp, 0, 4000);
+            if (roll < (sum += tmp)) {
+                return MeleeHitOutcome.MELEE_HIT_GLANCING;
+            }
         }
         tmp = crit_chance;
         if (tmp > 0 && roll < (sum += crit_chance)) {
@@ -122,33 +124,36 @@ export class Player extends Unit {
         }
         return MeleeHitOutcome.MELEE_HIT_NORMAL;
     }
-    calculateMeleeDamage(victim, is_mh) {
-        const rawDamage = this.calculateRawDamage(is_mh);
+    calculateMeleeDamage(victim, is_mh, spell) {
+        const rawDamage = this.calculateRawDamage(is_mh, spell);
         const armorReduced = victim.calculateArmorReducedDamage(rawDamage, this);
-        const hitOutcome = this.rollMeleeHitOutcome(victim, is_mh);
+        const hitOutcome = this.rollMeleeHitOutcome(victim, is_mh, spell);
         let damage = armorReduced;
-        let proc = false;
+        let cleanDamage = 0;
         switch (hitOutcome) {
             case MeleeHitOutcome.MELEE_HIT_MISS:
+                {
+                    damage = 0;
+                    break;
+                }
             case MeleeHitOutcome.MELEE_HIT_DODGE:
                 {
                     damage = 0;
+                    cleanDamage = rawDamage;
                     break;
                 }
             case MeleeHitOutcome.MELEE_HIT_GLANCING:
                 {
                     const reducePercent = this.calculateGlancingReduction(victim, is_mh);
-                    damage = Math.trunc(reducePercent * damage);
+                    damage = reducePercent * damage;
                     break;
                 }
             case MeleeHitOutcome.MELEE_HIT_NORMAL:
                 {
-                    proc = true;
                     break;
                 }
             case MeleeHitOutcome.MELEE_HIT_CRIT:
                 {
-                    proc = true;
                     damage *= 2;
                     break;
                 }
@@ -156,9 +161,9 @@ export class Player extends Unit {
         if (!is_mh) {
             damage *= 0.625;
         }
-        return [Math.trunc(damage), hitOutcome];
+        return [damage, hitOutcome, cleanDamage, spell];
     }
-    updateProcs(time, is_mh, hitOutcome, damageDone) {
+    updateProcs(time, is_mh, hitOutcome, damageDone, cleanDamage, spell) {
         if (![MeleeHitOutcome.MELEE_HIT_MISS, MeleeHitOutcome.MELEE_HIT_DODGE].includes(hitOutcome)) {
             const weapon = is_mh ? this.mh : this.oh;
             weapon.proc(time);
@@ -167,17 +172,19 @@ export class Player extends Unit {
             }
         }
     }
-    swingWeapon(time, target, is_mh) {
+    swingWeapon(time, target, is_mh, spell) {
         const [thisWeapon, otherWeapon] = is_mh ? [this.mh, this.oh] : [this.oh, this.mh];
-        const [damageDone, hitOutcome] = this.calculateMeleeDamage(target, is_mh);
+        let [damageDone, hitOutcome, cleanDamage, was_spell] = this.calculateMeleeDamage(target, is_mh, spell || false);
+        damageDone = Math.trunc(damageDone);
+        cleanDamage = Math.trunc(cleanDamage);
         if (this.log) {
-            let hitStr = `Your ${is_mh ? 'main-hand' : 'off-hand'} ${hitOutcomeString[hitOutcome]}`;
+            let hitStr = `Your ${was_spell ? 'Heroic Strike' : (is_mh ? 'main-hand' : 'off-hand')} ${hitOutcomeString[hitOutcome]}`;
             if (![MeleeHitOutcome.MELEE_HIT_MISS, MeleeHitOutcome.MELEE_HIT_DODGE].includes(hitOutcome)) {
                 hitStr += ` for ${damageDone}`;
             }
             this.log(time, hitStr);
         }
-        this.updateProcs(time, is_mh, hitOutcome, damageDone);
+        this.updateProcs(time, is_mh, hitOutcome, damageDone, cleanDamage, spell || false);
         console.log('weapon speed', is_mh, thisWeapon.weapon.speed / this.buffManager.stats.haste);
         thisWeapon.nextSwingTime = time + thisWeapon.weapon.speed / this.buffManager.stats.haste * 1000;
         if (otherWeapon && otherWeapon.nextSwingTime < time + 200) {
@@ -188,11 +195,8 @@ export class Player extends Unit {
     }
     updateMeleeAttackingState(time) {
         this.buffManager.removeExpiredBuffs(time);
-        while (this.extraAttackCount > 0) {
-            this.mh.nextSwingTime = time;
-            this.updateMeleeAttackingState(time);
-            this.extraAttackCount--;
-        }
+        this.buffManager.recalculateStats();
+        this.chooseAction(time);
         let damageDone = 0;
         let hitOutcome;
         let is_mh = false;
@@ -207,5 +211,6 @@ export class Player extends Unit {
         }
         return [damageDone, hitOutcome, is_mh];
     }
+    chooseAction(time) { }
 }
 //# sourceMappingURL=player.js.map
