@@ -22,7 +22,7 @@ function log(time, str) {
     }
 }
 function loadStats() {
-    const res = { maceSkill: 309 };
+    const res = { maceSkill: 305, swordSkill: 305 };
     res.ap = parseInt(statEls.ap.value);
     res.str = parseInt(statEls.str.value);
     res.agi = parseInt(statEls.agi.value);

@@ -27,7 +27,7 @@ export class Warrior extends Player {
     }
 
     get ap() {
-        return this.buffManager.stats.ap + this.buffManager.stats.str * this.buffManager.stats.statMult * 2;
+        return this.level * 3 - 20 + this.buffManager.stats.ap + this.buffManager.stats.str * this.buffManager.stats.statMult * 2;
     }
 
     calculateRawDamage(is_mh: boolean, is_spell: boolean) { // TODO - currently is_spell is really is_heroicstrike
@@ -35,14 +35,14 @@ export class Warrior extends Player {
         return bonus + super.calculateRawDamage(is_mh, is_spell);
     }
 
-    calculateMeleeDamage(rawDamage: number, victim: Unit, is_mh: boolean, is_spell: boolean, ignore_weapon_skill = false): [number, MeleeHitOutcome, number, boolean] {
+    calculateMeleeDamage(rawDamage: number, victim: Unit, is_mh: boolean, is_spell: boolean, ignore_weapon_skill = false): [number, MeleeHitOutcome, number] {
         let [damageDone, hitOutcome, cleanDamage] = super.calculateMeleeDamage(rawDamage, victim, is_mh, is_spell, ignore_weapon_skill);
 
         if (hitOutcome === MeleeHitOutcome.MELEE_HIT_CRIT && is_spell) {
             damageDone *= 1.1; // impale
         }
         
-        return [damageDone, hitOutcome, cleanDamage, is_spell];
+        return [damageDone, hitOutcome, cleanDamage];
     }
 
     protected rewardRage(damage: number, is_attacker: boolean, time: number) {
@@ -100,7 +100,7 @@ export class Warrior extends Player {
     }
 
     swingWeapon(time: number, target: Unit, is_mh: boolean, spell?: Spell) {
-        if (!spell && this.queuedSpell && is_mh) {
+        if (!spell && this.queuedSpell && is_mh && !this.extraAttackCount) { // don't cast heroic strike if it is an extra attack
             this.queuedSpell.cast(time);
             this.queuedSpell = undefined;
         } else {
@@ -116,11 +116,11 @@ export class Warrior extends Player {
             if (this.bloodthirst.canCast(time)) {
                 this.bloodthirst.cast(time);
             } else if (!this.bloodthirst.onCooldown(time)) {
-                return; // not a cooldown issue, wait for rage or gcd
+                return; // not on cooldown, wait for rage or gcd
             } else if (this.whirlwind.canCast(time)) {
                 this.whirlwind.cast(time);
             } else if (!this.whirlwind.onCooldown(time)) {
-                return; // not a cooldown issue, wait for rage or gcd
+                return; // not on cooldown, wait for rage or gcd
             } else if (false && this.hamstring.canCast(time)) {
                 this.hamstring.cast(time);
             }

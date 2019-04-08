@@ -1,5 +1,6 @@
-import { Buff, BuffManager } from "./buff.js";
-import { Stats } from "./stats.js";
+import { Buff } from "./buff.js";
+import { Player } from "./player.js";
+import { Stats, StatValues } from "./stats.js";
 
 export enum WeaponType {
     MACE,
@@ -30,16 +31,16 @@ export class WeaponEquiped {
     weapon: Weapon;
     nextSwingTime: number;
     procs: Proc[];
-    buffManager: BuffManager;
+    player: Player;
     
-    constructor(weapon: Weapon, buffManager: BuffManager) {
+    constructor(weapon: Weapon, player: Player) {
         this.weapon = weapon;
         this.procs = [];
         if (this.weapon.proc) {
             this.addProc(this.weapon.proc)
         }
 
-        this.buffManager = buffManager;
+        this.player = player;
 
         this.nextSwingTime = 100; // TODO - need to reset this properly if ever want to simulate fights where you run out
     }
@@ -52,7 +53,7 @@ export class WeaponEquiped {
         for (let proc of this.procs) {
             const maybeBuff = proc.run(this.weapon);
             if (maybeBuff) {
-                this.buffManager.add(maybeBuff, time);
+                this.player.buffManager.add(maybeBuff, time);
             }
         }
     }
@@ -63,13 +64,15 @@ export class Weapon {
     max: number;
     speed: number;
     type: WeaponType;
+    stats?: StatValues;
     proc?: Proc;
 
-    constructor(type: WeaponType, min: number, max: number, speed: number, proc?: Proc) {
+    constructor(type: WeaponType, min: number, max: number, speed: number, stats?: StatValues, proc?: Proc) {
         this.type = type;
         this.min = min;
         this.max = max;
         this.speed = speed;
+        this.stats = stats;
         this.proc = proc;
     }
 
@@ -83,5 +86,5 @@ export class Weapon {
 export const crusaderBuffMHProc = new Proc(new Buff("Crusader MH", 15, new Stats({str: 100})), 1);
 export const crusaderBuffOHProc = new Proc(new Buff("Crusader OH", 15, new Stats({str: 100})), 1);
 
-export const emp_demo = new Weapon(WeaponType.MACE, 94, 175, 2.80, new Proc(new Buff("Empyrean Demolisher", 10, {haste: 1.2}), 1));
-export const anubisath = new Weapon(WeaponType.MACE, 66, 123, 1.80);
+export const emp_demo = new Weapon(WeaponType.MACE, 94, 175, 2.80, {}, new Proc(new Buff("Empyrean Demolisher", 10, {haste: 1.2}), 1));
+export const anubisath = new Weapon(WeaponType.MACE, 66, 123, 1.80, { maceSkill: 4, ap: 32 });

@@ -2,7 +2,7 @@ import { Weapon, WeaponEquiped, WeaponType } from "./weapon.js";
 import { Unit } from "./unit.js";
 import { urand, clamp } from "./math.js";
 import { BuffManager } from "./buff.js";
-import { StatValues } from "./stats.js";
+import { StatValues, Stats } from "./stats.js";
 import { Spell } from "./spell.js";
 
 export enum MeleeHitOutcome {
@@ -41,8 +41,8 @@ export class Player extends Unit {
 
     target: Unit | undefined;
 
-    nextGCDTime: number;
-    extraAttackCount: number;
+    nextGCDTime = 0;
+    extraAttackCount = 0;
 
     buffManager: BuffManager;
 
@@ -50,16 +50,23 @@ export class Player extends Unit {
 
     log?: (time: number, text: string) => void;
 
-    constructor(mh: Weapon, oh: Weapon, stats: StatValues, logCallback?: (time: number, text: string) => void) {
-        super(60, 0);
+    constructor(mh: Weapon, oh: Weapon|undefined, stats: StatValues, logCallback?: (time: number, text: string) => void) {
+        super(60, 0); // lvl, armor
 
-        this.buffManager = new BuffManager(stats, logCallback);
+        const combinedStats = new Stats(stats);
+        if (mh.stats) {
+            combinedStats.add(mh.stats);
+        }
+        if (oh && oh.stats) {
+            combinedStats.add(oh.stats);
+        }
 
-        this.mh = new WeaponEquiped(mh, this.buffManager);
-        this.oh = new WeaponEquiped(oh, this.buffManager);
+        this.buffManager = new BuffManager(combinedStats, logCallback);
 
-        this.nextGCDTime = 0;
-        this.extraAttackCount = 0;
+        this.mh = new WeaponEquiped(mh, this);
+        if (oh) {
+            this.oh = new WeaponEquiped(oh, this);
+        }
 
         this.log = logCallback;
     }
@@ -204,7 +211,7 @@ export class Player extends Unit {
         return MeleeHitOutcome.MELEE_HIT_NORMAL;
     }
 
-    calculateMeleeDamage(rawDamage: number, victim: Unit, is_mh: boolean, is_spell: boolean, ignore_weapon_skill = false): [number, MeleeHitOutcome, number, boolean] {
+    calculateMeleeDamage(rawDamage: number, victim: Unit, is_mh: boolean, is_spell: boolean, ignore_weapon_skill = false): [number, MeleeHitOutcome, number] {
         const armorReduced = victim.calculateArmorReducedDamage(rawDamage, this);
 
         const hitOutcome = this.rollMeleeHitOutcome(victim, is_mh, is_spell, ignore_weapon_skill);
@@ -245,7 +252,7 @@ export class Player extends Unit {
             damage *= 0.625; // TODO - check talents, should be in warrior class
         }
 
-        return [damage, hitOutcome, cleanDamage, is_spell];
+        return [damage, hitOutcome, cleanDamage];
     }
 
     updateProcs(time: number, is_mh: boolean, hitOutcome: MeleeHitOutcome, damageDone: number, cleanDamage: number, spell?: Spell) {
@@ -254,14 +261,14 @@ export class Player extends Unit {
             const weapon = is_mh ? this.mh : this.oh!;
             weapon.proc(time);
 
-            // if (this.extraAttackCount === 0) {
-            //     console.log("check for extra attack procs");
-            // }
+            if (this.extraAttackCount === 0) {
+                console.log("check for extra attack procs");
+            }
         }
     }
 
     dealMeleeDamage(time: number, rawDamage: number, target: Unit, is_mh: boolean, spell?: Spell, ignore_weapon_skill = false) {
-        let [damageDone, hitOutcome, cleanDamage, was_spell] = this.calculateMeleeDamage(rawDamage, target, is_mh, spell !== undefined, ignore_weapon_skill);
+        let [damageDone, hitOutcome, cleanDamage] = this.calculateMeleeDamage(rawDamage, target, is_mh, spell !== undefined, ignore_weapon_skill);
         damageDone = Math.trunc(damageDone); // truncating here because warrior subclass builds on top of calculateMeleeDamage
         cleanDamage = Math.trunc(cleanDamage);
 
@@ -301,13 +308,12 @@ export class Player extends Unit {
         this.buffManager.removeExpiredBuffs(time);
         this.buffManager.recalculateStats();
 
-        // while (this.extraAttackCount > 0)  // TODO - this doesn't work yet
-        //     this.mh.nextSwingTime = time;
-        //     this.updateMeleeAttackingState(time); // TODO - I think this is usually the next server tick
-        //     this.extraAttackCount--;
-        // }
-
         if (this.target) {
+            while (this.extraAttackCount > 0) {
+                this.swingWeapon(time, this.target, true);
+                this.extraAttackCount--;
+            }
+
             this.chooseAction(time);
 
             if (time >= this.mh.nextSwingTime) {

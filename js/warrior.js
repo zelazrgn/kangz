@@ -22,7 +22,7 @@ export class Warrior extends Player {
         this.rage = clamp(power, 0, 100);
     }
     get ap() {
-        return this.buffManager.stats.ap + this.buffManager.stats.str * this.buffManager.stats.statMult * 2;
+        return this.level * 3 - 20 + this.buffManager.stats.ap + this.buffManager.stats.str * this.buffManager.stats.statMult * 2;
     }
     calculateRawDamage(is_mh, is_spell) {
         const bonus = (is_mh && is_spell) ? 157 : 0;
@@ -33,7 +33,7 @@ export class Warrior extends Player {
         if (hitOutcome === MeleeHitOutcome.MELEE_HIT_CRIT && is_spell) {
             damageDone *= 1.1;
         }
-        return [damageDone, hitOutcome, cleanDamage, is_spell];
+        return [damageDone, hitOutcome, cleanDamage];
     }
     rewardRage(damage, is_attacker, time) {
         const LEVEL_60_RAGE_CONV = 230.6;
@@ -73,7 +73,7 @@ export class Warrior extends Player {
         }
     }
     swingWeapon(time, target, is_mh, spell) {
-        if (!spell && this.queuedSpell && is_mh) {
+        if (!spell && this.queuedSpell && is_mh && !this.extraAttackCount) {
             this.queuedSpell.cast(time);
             this.queuedSpell = undefined;
         }

@@ -2,6 +2,7 @@ import { WeaponEquiped, WeaponType } from "./weapon.js";
 import { Unit } from "./unit.js";
 import { urand, clamp } from "./math.js";
 import { BuffManager } from "./buff.js";
+import { Stats } from "./stats.js";
 export var MeleeHitOutcome;
 (function (MeleeHitOutcome) {
     MeleeHitOutcome[MeleeHitOutcome["MELEE_HIT_EVADE"] = 0] = "MELEE_HIT_EVADE";
@@ -31,12 +32,21 @@ const skillDiffToReduction = [1, 0.9926, 0.9840, 0.9742, 0.9629, 0.9500, 0.9351,
 export class Player extends Unit {
     constructor(mh, oh, stats, logCallback) {
         super(60, 0);
-        this.damageDone = 0;
-        this.buffManager = new BuffManager(stats, logCallback);
-        this.mh = new WeaponEquiped(mh, this.buffManager);
-        this.oh = new WeaponEquiped(oh, this.buffManager);
         this.nextGCDTime = 0;
         this.extraAttackCount = 0;
+        this.damageDone = 0;
+        const combinedStats = new Stats(stats);
+        if (mh.stats) {
+            combinedStats.add(mh.stats);
+        }
+        if (oh && oh.stats) {
+            combinedStats.add(oh.stats);
+        }
+        this.buffManager = new BuffManager(combinedStats, logCallback);
+        this.mh = new WeaponEquiped(mh, this);
+        if (oh) {
+            this.oh = new WeaponEquiped(oh, this);
+        }
         this.log = logCallback;
     }
     get power() {
@@ -184,16 +194,19 @@ export class Player extends Unit {
         if (!is_mh) {
             damage *= 0.625;
         }
-        return [damage, hitOutcome, cleanDamage, is_spell];
+        return [damage, hitOutcome, cleanDamage];
     }
     updateProcs(time, is_mh, hitOutcome, damageDone, cleanDamage, spell) {
         if (![MeleeHitOutcome.MELEE_HIT_MISS, MeleeHitOutcome.MELEE_HIT_DODGE].includes(hitOutcome)) {
             const weapon = is_mh ? this.mh : this.oh;
             weapon.proc(time);
+            if (this.extraAttackCount === 0) {
+                console.log("check for extra attack procs");
+            }
         }
     }
     dealMeleeDamage(time, rawDamage, target, is_mh, spell, ignore_weapon_skill = false) {
-        let [damageDone, hitOutcome, cleanDamage, was_spell] = this.calculateMeleeDamage(rawDamage, target, is_mh, spell !== undefined, ignore_weapon_skill);
+        let [damageDone, hitOutcome, cleanDamage] = this.calculateMeleeDamage(rawDamage, target, is_mh, spell !== undefined, ignore_weapon_skill);
         damageDone = Math.trunc(damageDone);
         cleanDamage = Math.trunc(cleanDamage);
         this.damageDone += damageDone;
@@ -220,6 +233,10 @@ export class Player extends Unit {
         this.buffManager.removeExpiredBuffs(time);
         this.buffManager.recalculateStats();
         if (this.target) {
+            while (this.extraAttackCount > 0) {
+                this.swingWeapon(time, this.target, true);
+                this.extraAttackCount--;
+            }
             this.chooseAction(time);
             if (time >= this.mh.nextSwingTime) {
                 this.swingWeapon(time, this.target, true);
