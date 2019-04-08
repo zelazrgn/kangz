@@ -15,7 +15,7 @@ export var MeleeHitOutcome;
     MeleeHitOutcome[MeleeHitOutcome["MELEE_HIT_NORMAL"] = 8] = "MELEE_HIT_NORMAL";
     MeleeHitOutcome[MeleeHitOutcome["MELEE_HIT_BLOCK_CRIT"] = 9] = "MELEE_HIT_BLOCK_CRIT";
 })(MeleeHitOutcome || (MeleeHitOutcome = {}));
-const hitOutcomeString = {
+export const hitOutcomeString = {
     [MeleeHitOutcome.MELEE_HIT_EVADE]: 'evade',
     [MeleeHitOutcome.MELEE_HIT_MISS]: 'misses',
     [MeleeHitOutcome.MELEE_HIT_DODGE]: 'is dodged',
@@ -31,6 +31,7 @@ const skillDiffToReduction = [1, 0.9926, 0.9840, 0.9742, 0.9629, 0.9500, 0.9351,
 export class Player extends Unit {
     constructor(mh, oh, stats, logCallback) {
         super(60, 0);
+        this.damageDone = 0;
         this.buffManager = new BuffManager(stats, logCallback);
         this.mh = new WeaponEquiped(mh, this.buffManager);
         this.oh = new WeaponEquiped(oh, this.buffManager);
@@ -38,14 +39,37 @@ export class Player extends Unit {
         this.extraAttackCount = 0;
         this.log = logCallback;
     }
-    calculateWeaponSkillValue(is_mh) {
+    get power() {
+        return 0;
+    }
+    set power(power) { }
+    calculateWeaponSkillValue(is_mh, ignore_weapon_skill = false) {
+        if (ignore_weapon_skill) {
+            return this.maxSkillForLevel;
+        }
         const weapon = is_mh ? this.mh : this.oh;
         const weaponType = weapon.weapon.type;
-        if ([WeaponType.MACE, WeaponType.SWORD].includes(weaponType)) {
-            return 305;
-        }
-        else {
-            return 300;
+        switch (weaponType) {
+            case WeaponType.MACE:
+                {
+                    return this.buffManager.stats.maceSkill;
+                }
+            case WeaponType.SWORD:
+                {
+                    return this.buffManager.stats.swordSkill;
+                }
+            case WeaponType.AXE:
+                {
+                    return this.buffManager.stats.axeSkill;
+                }
+            case WeaponType.DAGGER:
+                {
+                    return this.buffManager.stats.daggerSkill;
+                }
+            default:
+                {
+                    return this.maxSkillForLevel;
+                }
         }
     }
     calculateCritChance(victim) {
@@ -54,13 +78,13 @@ export class Player extends Unit {
         crit -= (victim.defenseSkill - 300) * 0.04;
         return crit;
     }
-    calculateMissChance(victim, is_mh, spell) {
+    calculateMissChance(victim, is_mh, is_spell, ignore_weapon_skill = false) {
         let res = 5;
         res -= this.buffManager.stats.hit;
-        if (this.oh && !(is_mh && spell)) {
+        if (this.oh && !is_spell) {
             res += 19;
         }
-        const skillDiff = this.calculateWeaponSkillValue(is_mh) - victim.defenseSkill;
+        const skillDiff = this.calculateWeaponSkillValue(is_mh, ignore_weapon_skill) - victim.defenseSkill;
         if (skillDiff < -10) {
             res -= (skillDiff + 10) * 0.4 - 2;
         }
@@ -81,28 +105,28 @@ export class Player extends Unit {
             return skillDiffToReduction[skillDiff];
         }
     }
-    calculateAttackPower() {
+    get ap() {
         return 0;
     }
     calculateMinMaxDamage(is_mh) {
         const weapon = is_mh ? this.mh : this.oh;
-        const ap_bonus = this.calculateAttackPower() / 14 * weapon.weapon.speed;
+        const ap_bonus = this.ap / 14 * weapon.weapon.speed;
         return [
             Math.trunc(weapon.weapon.min + ap_bonus),
             Math.trunc(weapon.weapon.max + ap_bonus)
         ];
     }
-    calculateRawDamage(is_mh, spell) {
+    calculateRawDamage(is_mh, is_spell) {
         return urand(...this.calculateMinMaxDamage(is_mh));
     }
-    rollMeleeHitOutcome(victim, is_mh, spell) {
+    rollMeleeHitOutcome(victim, is_mh, is_spell, ignore_weapon_skill = false) {
         const roll = urand(0, 10000);
         let sum = 0;
         let tmp = 0;
-        const miss_chance = Math.round(this.calculateMissChance(victim, is_mh, spell) * 100);
+        const miss_chance = Math.round(this.calculateMissChance(victim, is_mh, is_spell, ignore_weapon_skill) * 100);
         const dodge_chance = Math.round(victim.dodgeChance * 100);
         const crit_chance = Math.round(this.calculateCritChance(victim) * 100);
-        const skillBonus = 4 * (this.calculateWeaponSkillValue(is_mh) - victim.maxSkillForLevel);
+        const skillBonus = 4 * (this.calculateWeaponSkillValue(is_mh, ignore_weapon_skill) - victim.maxSkillForLevel);
         tmp = miss_chance;
         if (tmp > 0 && roll < (sum += tmp)) {
             return MeleeHitOutcome.MELEE_HIT_MISS;
@@ -111,7 +135,7 @@ export class Player extends Unit {
         if (tmp > 0 && roll < (sum += tmp)) {
             return MeleeHitOutcome.MELEE_HIT_DODGE;
         }
-        if (!spell) {
+        if (!is_spell) {
             tmp = (10 + (victim.defenseSkill - 300) * 2) * 100;
             tmp = clamp(tmp, 0, 4000);
             if (roll < (sum += tmp)) {
@@ -124,10 +148,9 @@ export class Player extends Unit {
         }
         return MeleeHitOutcome.MELEE_HIT_NORMAL;
     }
-    calculateMeleeDamage(victim, is_mh, spell) {
-        const rawDamage = this.calculateRawDamage(is_mh, spell);
+    calculateMeleeDamage(rawDamage, victim, is_mh, is_spell, ignore_weapon_skill = false) {
         const armorReduced = victim.calculateArmorReducedDamage(rawDamage, this);
-        const hitOutcome = this.rollMeleeHitOutcome(victim, is_mh, spell);
+        const hitOutcome = this.rollMeleeHitOutcome(victim, is_mh, is_spell, ignore_weapon_skill);
         let damage = armorReduced;
         let cleanDamage = 0;
         switch (hitOutcome) {
@@ -161,55 +184,50 @@ export class Player extends Unit {
         if (!is_mh) {
             damage *= 0.625;
         }
-        return [damage, hitOutcome, cleanDamage, spell];
+        return [damage, hitOutcome, cleanDamage, is_spell];
     }
     updateProcs(time, is_mh, hitOutcome, damageDone, cleanDamage, spell) {
         if (![MeleeHitOutcome.MELEE_HIT_MISS, MeleeHitOutcome.MELEE_HIT_DODGE].includes(hitOutcome)) {
             const weapon = is_mh ? this.mh : this.oh;
             weapon.proc(time);
-            if (this.extraAttackCount === 0) {
-                console.log("check for extra attack procs");
-            }
         }
     }
-    swingWeapon(time, target, is_mh, spell) {
-        const [thisWeapon, otherWeapon] = is_mh ? [this.mh, this.oh] : [this.oh, this.mh];
-        let [damageDone, hitOutcome, cleanDamage, was_spell] = this.calculateMeleeDamage(target, is_mh, spell || false);
+    dealMeleeDamage(time, rawDamage, target, is_mh, spell, ignore_weapon_skill = false) {
+        let [damageDone, hitOutcome, cleanDamage, was_spell] = this.calculateMeleeDamage(rawDamage, target, is_mh, spell !== undefined, ignore_weapon_skill);
         damageDone = Math.trunc(damageDone);
         cleanDamage = Math.trunc(cleanDamage);
+        this.damageDone += damageDone;
         if (this.log) {
-            let hitStr = `Your ${was_spell ? 'Heroic Strike' : (is_mh ? 'main-hand' : 'off-hand')} ${hitOutcomeString[hitOutcome]}`;
+            let hitStr = `Your ${spell ? spell.name : (is_mh ? 'main-hand' : 'off-hand')} ${hitOutcomeString[hitOutcome]}`;
             if (![MeleeHitOutcome.MELEE_HIT_MISS, MeleeHitOutcome.MELEE_HIT_DODGE].includes(hitOutcome)) {
                 hitStr += ` for ${damageDone}`;
             }
             this.log(time, hitStr);
         }
-        this.updateProcs(time, is_mh, hitOutcome, damageDone, cleanDamage, spell || false);
-        console.log('weapon speed', is_mh, thisWeapon.weapon.speed / this.buffManager.stats.haste);
+        this.updateProcs(time, is_mh, hitOutcome, damageDone, cleanDamage, spell);
+        this.buffManager.recalculateStats();
+    }
+    swingWeapon(time, target, is_mh, spell) {
+        const rawDamage = this.calculateRawDamage(is_mh, spell !== undefined);
+        this.dealMeleeDamage(time, rawDamage, target, is_mh, spell);
+        const [thisWeapon, otherWeapon] = is_mh ? [this.mh, this.oh] : [this.oh, this.mh];
         thisWeapon.nextSwingTime = time + thisWeapon.weapon.speed / this.buffManager.stats.haste * 1000;
         if (otherWeapon && otherWeapon.nextSwingTime < time + 200) {
-            console.log(`delaying ${is_mh ? 'OH' : 'MH'} swing`, time + 200 - otherWeapon.nextSwingTime);
             otherWeapon.nextSwingTime = time + 200;
         }
-        return [damageDone, hitOutcome];
     }
-    updateMeleeAttackingState(time) {
+    update(time) {
         this.buffManager.removeExpiredBuffs(time);
         this.buffManager.recalculateStats();
-        this.chooseAction(time);
-        let damageDone = 0;
-        let hitOutcome;
-        let is_mh = false;
         if (this.target) {
+            this.chooseAction(time);
             if (time >= this.mh.nextSwingTime) {
-                is_mh = true;
-                [damageDone, hitOutcome] = this.swingWeapon(time, this.target, is_mh);
+                this.swingWeapon(time, this.target, true);
             }
             else if (this.oh && time >= this.oh.nextSwingTime) {
-                [damageDone, hitOutcome] = this.swingWeapon(time, this.target, is_mh);
+                this.swingWeapon(time, this.target, false);
             }
         }
-        return [damageDone, hitOutcome, is_mh];
     }
     chooseAction(time) { }
 }

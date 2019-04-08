@@ -3,6 +3,7 @@ import { Unit } from "./unit.js";
 import { urand, clamp } from "./math.js";
 import { BuffManager } from "./buff.js";
 import { StatValues } from "./stats.js";
+import { Spell } from "./spell.js";
 
 export enum MeleeHitOutcome {
     MELEE_HIT_EVADE,
@@ -19,7 +20,7 @@ export enum MeleeHitOutcome {
 
 type HitOutComeStringMap = {[TKey in MeleeHitOutcome]: string};
 
-const hitOutcomeString: HitOutComeStringMap = {
+export const hitOutcomeString: HitOutComeStringMap = {
     [MeleeHitOutcome.MELEE_HIT_EVADE]: 'evade',
     [MeleeHitOutcome.MELEE_HIT_MISS]: 'misses',
     [MeleeHitOutcome.MELEE_HIT_DODGE]: 'is dodged',
@@ -45,9 +46,11 @@ export class Player extends Unit {
 
     buffManager: BuffManager;
 
-    log?: (arg0: number, arg1: string) => void;
+    damageDone = 0;
 
-    constructor(mh: Weapon, oh: Weapon, stats: StatValues, logCallback?: (arg0: number, arg1: string) => void) {
+    log?: (time: number, text: string) => void;
+
+    constructor(mh: Weapon, oh: Weapon, stats: StatValues, logCallback?: (time: number, text: string) => void) {
         super(60, 0);
 
         this.buffManager = new BuffManager(stats, logCallback);
@@ -61,14 +64,41 @@ export class Player extends Unit {
         this.log = logCallback;
     }
 
-    protected calculateWeaponSkillValue(is_mh: boolean) {
+    get power(): number {
+        return 0;
+    }
+
+    set power(power: number) {}
+
+    protected calculateWeaponSkillValue(is_mh: boolean, ignore_weapon_skill = false) {
+        if (ignore_weapon_skill) {
+            return this.maxSkillForLevel;
+        }
+
         const weapon = is_mh ? this.mh : this.oh!;
         const weaponType = weapon.weapon.type;
 
-        if ([WeaponType.MACE, WeaponType.SWORD].includes(weaponType)) {
-            return 305;
-        } else {
-            return 300;
+        switch (weaponType) {
+            case WeaponType.MACE:
+            {
+                return this.buffManager.stats.maceSkill;
+            }
+            case WeaponType.SWORD:
+            {
+                return this.buffManager.stats.swordSkill;
+            }
+            case WeaponType.AXE:
+            {
+                return this.buffManager.stats.axeSkill;
+            }
+            case WeaponType.DAGGER:
+            {
+                return this.buffManager.stats.daggerSkill;
+            }
+            default:
+            {
+                return this.maxSkillForLevel;
+            }
         }
     }
 
@@ -81,15 +111,15 @@ export class Player extends Unit {
         return crit;
     }
 
-    protected calculateMissChance(victim: Unit, is_mh: boolean, spell: boolean) {
+    protected calculateMissChance(victim: Unit, is_mh: boolean, is_spell: boolean, ignore_weapon_skill = false) {
         let res = 5;
         res -= this.buffManager.stats.hit;
 
-        if (this.oh && !(is_mh && spell)) {
+        if (this.oh && !is_spell) {
             res += 19;
         }
         
-        const skillDiff = this.calculateWeaponSkillValue(is_mh) - victim.defenseSkill;
+        const skillDiff = this.calculateWeaponSkillValue(is_mh, ignore_weapon_skill) - victim.defenseSkill;
 
         if (skillDiff < -10) {
             res -= (skillDiff + 10) * 0.4 - 2;
@@ -112,7 +142,7 @@ export class Player extends Unit {
         }
     }
 
-    protected calculateAttackPower() {
+    protected get ap() {
         return 0;
     }
 
@@ -120,7 +150,7 @@ export class Player extends Unit {
         // TODO - Very simple version atm
         const weapon = is_mh ? this.mh : this.oh!;
 
-        const ap_bonus = this.calculateAttackPower() / 14 * weapon.weapon.speed;
+        const ap_bonus = this.ap / 14 * weapon.weapon.speed;
 
         return [
             Math.trunc(weapon.weapon.min + ap_bonus),
@@ -128,21 +158,21 @@ export class Player extends Unit {
         ];
     }
 
-    protected calculateRawDamage(is_mh: boolean, spell: boolean) {
+    protected calculateRawDamage(is_mh: boolean, is_spell: boolean) {
         return urand(...this.calculateMinMaxDamage(is_mh));
     }
 
-    protected rollMeleeHitOutcome(victim: Unit, is_mh: boolean, spell: boolean): MeleeHitOutcome {
+    rollMeleeHitOutcome(victim: Unit, is_mh: boolean, is_spell: boolean, ignore_weapon_skill = false): MeleeHitOutcome {
         const roll = urand(0, 10000);
         let sum = 0;
         let tmp = 0;
 
         // rounding instead of truncating because 19.4 * 100 was truncating to 1939.
-        const miss_chance = Math.round(this.calculateMissChance(victim, is_mh, spell) * 100);
+        const miss_chance = Math.round(this.calculateMissChance(victim, is_mh, is_spell, ignore_weapon_skill) * 100);
         const dodge_chance = Math.round(victim.dodgeChance * 100);
         const crit_chance = Math.round(this.calculateCritChance(victim) * 100);
 
-        const skillBonus = 4 * (this.calculateWeaponSkillValue(is_mh) - victim.maxSkillForLevel);
+        const skillBonus = 4 * (this.calculateWeaponSkillValue(is_mh, ignore_weapon_skill) - victim.maxSkillForLevel);
 
         tmp = miss_chance;
 
@@ -156,7 +186,7 @@ export class Player extends Unit {
             return MeleeHitOutcome.MELEE_HIT_DODGE;
         }
 
-        if (!spell) {
+        if (!is_spell) { // spells can't glance
             tmp = (10 + (victim.defenseSkill - 300) * 2) * 100;
             tmp = clamp(tmp, 0, 4000);
     
@@ -174,12 +204,10 @@ export class Player extends Unit {
         return MeleeHitOutcome.MELEE_HIT_NORMAL;
     }
 
-    protected calculateMeleeDamage(victim: Unit, is_mh: boolean, spell: boolean): [number, MeleeHitOutcome, number, boolean] {
-        const rawDamage = this.calculateRawDamage(is_mh, spell);
-
+    calculateMeleeDamage(rawDamage: number, victim: Unit, is_mh: boolean, is_spell: boolean, ignore_weapon_skill = false): [number, MeleeHitOutcome, number, boolean] {
         const armorReduced = victim.calculateArmorReducedDamage(rawDamage, this);
 
-        const hitOutcome = this.rollMeleeHitOutcome(victim, is_mh, spell);
+        const hitOutcome = this.rollMeleeHitOutcome(victim, is_mh, is_spell, ignore_weapon_skill);
 
         let damage = armorReduced;
         let cleanDamage = 0;
@@ -217,55 +245,61 @@ export class Player extends Unit {
             damage *= 0.625; // TODO - check talents, should be in warrior class
         }
 
-        return [damage, hitOutcome, cleanDamage, spell];
+        return [damage, hitOutcome, cleanDamage, is_spell];
     }
 
-    protected updateProcs(time: number, is_mh: boolean, hitOutcome: MeleeHitOutcome, damageDone: number, cleanDamage: number, spell: boolean) {
+    updateProcs(time: number, is_mh: boolean, hitOutcome: MeleeHitOutcome, damageDone: number, cleanDamage: number, spell?: Spell) {
         if (![MeleeHitOutcome.MELEE_HIT_MISS, MeleeHitOutcome.MELEE_HIT_DODGE].includes(hitOutcome)) {
-            // TODO - what is the order of checking for procs like hoj and ironfoe and windfury
+            // TODO - what is the order of checking for procs like hoj, ironfoe and windfury
             const weapon = is_mh ? this.mh : this.oh!;
             weapon.proc(time);
 
-            if (this.extraAttackCount === 0) {
-                console.log("check for extra attack procs");
-            }
+            // if (this.extraAttackCount === 0) {
+            //     console.log("check for extra attack procs");
+            // }
         }
     }
 
-    protected swingWeapon(time: number, target: Unit, is_mh: boolean, spell?: boolean): [number, MeleeHitOutcome] {
-        const [thisWeapon, otherWeapon] = is_mh ? [this.mh, this.oh] : [this.oh, this.mh]; 
-
-        let [damageDone, hitOutcome, cleanDamage, was_spell] = this.calculateMeleeDamage(target, is_mh, spell || false);
+    dealMeleeDamage(time: number, rawDamage: number, target: Unit, is_mh: boolean, spell?: Spell, ignore_weapon_skill = false) {
+        let [damageDone, hitOutcome, cleanDamage, was_spell] = this.calculateMeleeDamage(rawDamage, target, is_mh, spell !== undefined, ignore_weapon_skill);
         damageDone = Math.trunc(damageDone); // truncating here because warrior subclass builds on top of calculateMeleeDamage
         cleanDamage = Math.trunc(cleanDamage);
 
+        this.damageDone += damageDone;
+        
         if (this.log) {
-            // TODO - shouldn't have heroic strike string in player.ts
-            let hitStr = `Your ${was_spell ? 'Heroic Strike' : (is_mh ? 'main-hand' : 'off-hand')} ${hitOutcomeString[hitOutcome]}`;
+            let hitStr = `Your ${spell ? spell.name : (is_mh ? 'main-hand' : 'off-hand')} ${hitOutcomeString[hitOutcome]}`;
             if (![MeleeHitOutcome.MELEE_HIT_MISS, MeleeHitOutcome.MELEE_HIT_DODGE].includes(hitOutcome)) {
                 hitStr += ` for ${damageDone}`;
             }
             this.log(time, hitStr);
         }
 
-        // called before updating swing time because a proc such as flurry could change swing time
-        this.updateProcs(time, is_mh, hitOutcome, damageDone, cleanDamage, spell || false);
+        this.updateProcs(time, is_mh, hitOutcome, damageDone, cleanDamage, spell);
+        this.buffManager.recalculateStats();
+    }
 
-        console.log('weapon speed', is_mh, thisWeapon!.weapon.speed / this.buffManager.stats.haste);
+    protected swingWeapon(time: number, target: Unit, is_mh: boolean, spell?: Spell) {
+        // TODO - acount for extra attacks
+        
+        const rawDamage = this.calculateRawDamage(is_mh, spell !== undefined);
+
+        this.dealMeleeDamage(time, rawDamage, target, is_mh, spell);
+
+        const [thisWeapon, otherWeapon] = is_mh ? [this.mh, this.oh] : [this.oh, this.mh];
+
+        // console.log('weapon speed', is_mh, thisWeapon!.weapon.speed / this.buffManager.stats.haste);
         thisWeapon!.nextSwingTime = time + thisWeapon!.weapon.speed / this.buffManager.stats.haste * 1000;
 
         if (otherWeapon && otherWeapon.nextSwingTime < time + 200) {
-            console.log(`delaying ${is_mh ? 'OH' : 'MH'} swing`, time + 200 - otherWeapon.nextSwingTime);
+            // console.log(`delaying ${is_mh ? 'OH' : 'MH'} swing`, time + 200 - otherWeapon.nextSwingTime);
             otherWeapon.nextSwingTime = time + 200;
         }
-
-        return [damageDone, hitOutcome];
     }
 
-    updateMeleeAttackingState(time: number): [number, MeleeHitOutcome|undefined, boolean] {
+    update(time: number) {
         this.buffManager.removeExpiredBuffs(time);
         this.buffManager.recalculateStats();
-        this.chooseAction(time);
 
         // while (this.extraAttackCount > 0)  // TODO - this doesn't work yet
         //     this.mh.nextSwingTime = time;
@@ -273,20 +307,15 @@ export class Player extends Unit {
         //     this.extraAttackCount--;
         // }
 
-        let damageDone = 0;
-        let hitOutcome: MeleeHitOutcome | undefined;
-
-        let is_mh = false;
         if (this.target) {
+            this.chooseAction(time);
+
             if (time >= this.mh.nextSwingTime) {
-                is_mh = true;
-                [damageDone, hitOutcome] = this.swingWeapon(time, this.target, is_mh);
+                this.swingWeapon(time, this.target, true);
             } else if (this.oh && time >= this.oh.nextSwingTime) {
-                [damageDone, hitOutcome] = this.swingWeapon(time, this.target, is_mh);
+                this.swingWeapon(time, this.target, false);
             }
         }
-
-        return [damageDone, hitOutcome, is_mh];
     }
 
     chooseAction(time: number) {}

@@ -1,4 +1,4 @@
-import { Warrior } from "./warrior.js";
+import { Warrior, battleShout } from "./warrior.js";
 import { emp_demo, anubisath, crusaderBuffMHProc, crusaderBuffOHProc } from "./weapon.js";
 import { Unit } from "./unit.js";
 import { warchiefs } from "./buff.js";
@@ -22,7 +22,7 @@ function log(time, str) {
     }
 }
 function loadStats() {
-    const res = {};
+    const res = { maceSkill: 309 };
     res.ap = parseInt(statEls.ap.value);
     res.str = parseInt(statEls.str.value);
     res.agi = parseInt(statEls.agi.value);
@@ -35,20 +35,20 @@ class RealTimeSim {
         this.requestStop = false;
         this.startTime = 0;
         this.duration = 0;
+        this.paused = false;
         this.fast = fast;
         const me = new Warrior(emp_demo, anubisath, loadStats(), log);
         me.buffManager.add(warchiefs, 0);
+        me.buffManager.add(battleShout, 0);
         me.mh.addProc(crusaderBuffMHProc);
         me.oh.addProc(crusaderBuffOHProc);
         const boss = new Unit(63, 200);
         me.target = boss;
-        let totalDamage = 0;
         let duration = 0;
         const printDPS = setInterval(() => {
-            const dps = totalDamage / this.duration * 1000;
+            const dps = me.damageDone / this.duration * 1000;
             dpsEl.textContent = `Time: ${(this.duration / 1000).toFixed(3)} DPS: ${dps.toFixed(1)}`;
             if (this.fast) {
-                dpsEl.textContent += ` Speedup ${(this.duration / (performance.now() - this.startTime)).toFixed(2)}`;
             }
         }, 1000);
         this.update = () => {
@@ -56,22 +56,29 @@ class RealTimeSim {
                 clearInterval(printDPS);
                 return;
             }
-            this.startTime = this.startTime || performance.now();
-            if (fast) {
-                this.duration = Math.min(me.mh.nextSwingTime, me.oh.nextSwingTime);
+            if (!this.paused) {
+                if (fast) {
+                    if (me.nextGCDTime > this.duration) {
+                        this.duration = Math.min(me.nextGCDTime, me.mh.nextSwingTime, me.oh.nextSwingTime);
+                    }
+                    else {
+                        this.duration = Math.min(me.mh.nextSwingTime, me.oh.nextSwingTime);
+                    }
+                }
+                else {
+                    this.duration += 1000 / 60;
+                }
+                me.update(this.duration);
+                rageEl.textContent = `Rage: ${me.rage}`;
             }
-            else {
-                const now = performance.now();
-                this.duration = now - this.startTime;
-            }
-            const [damageDone, hitOutcome, is_mh] = me.updateMeleeAttackingState(this.duration);
-            totalDamage += damageDone;
-            rageEl.textContent = `Rage: ${me.rage}`;
             requestAnimationFrame(this.update);
         };
     }
     start() {
         requestAnimationFrame(this.update);
+    }
+    pause() {
+        this.paused = !this.paused;
     }
     stop() {
         this.requestStop = true;
@@ -85,5 +92,8 @@ document.getElementById('restartBtn').addEventListener('click', () => {
     dpsEl.innerHTML = "";
     currentSim = new RealTimeSim(fastModeEl.checked);
     currentSim.start();
+});
+document.getElementById('pauseBtn').addEventListener('click', () => {
+    currentSim.pause();
 });
 //# sourceMappingURL=main.js.map

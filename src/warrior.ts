@@ -1,35 +1,48 @@
 import { Player, MeleeHitOutcome } from "./player.js";
 import { Buff } from "./buff.js";
 import { Unit } from "./unit.js";
+import { Spell, LearnedSpell } from "./spell.js";
+import { clamp } from "./math.js";
 
 const flurry = new Buff("Flurry", 15, {haste: 1.3});
 
 export class Warrior extends Player {
     flurryCount = 0;
     rage = 0;
-    hasQueuedSpell = false;
 
-    calculateAttackPower() {
+    execute = new LearnedSpell(executeSpell, this);
+    bloodthirst = new LearnedSpell(bloodthirstSpell, this);
+    heroicStrike = new LearnedSpell(heroicStrikeSpell, this);
+    hamstring = new LearnedSpell(hamstringSpell, this);
+    whirlwind = new LearnedSpell(whirlwindSpell, this);
+
+    queuedSpell: LearnedSpell|undefined = undefined;
+
+    get power() {
+        return this.rage;
+    }
+
+    set power(power: number) {
+        this.rage = clamp(power, 0, 100);
+    }
+
+    get ap() {
         return this.buffManager.stats.ap + this.buffManager.stats.str * this.buffManager.stats.statMult * 2;
     }
 
-    protected calculateRawDamage(is_mh: boolean, spell: boolean) {
-        const bonus = (is_mh && spell) ? 157 : 0; // heroic strike rank 9
-        return bonus + super.calculateRawDamage(is_mh, spell);
+    calculateRawDamage(is_mh: boolean, is_spell: boolean) { // TODO - currently is_spell is really is_heroicstrike
+        const bonus = (is_mh && is_spell) ? 157 : 0; // heroic strike rank 9
+        return bonus + super.calculateRawDamage(is_mh, is_spell);
     }
 
-    protected calculateMeleeDamage(victim: Unit, is_mh: boolean, spell: boolean): [number, MeleeHitOutcome, number, boolean] {
-        let [damageDone, hitOutcome, cleanDamage] = super.calculateMeleeDamage(victim, is_mh, spell);
+    calculateMeleeDamage(rawDamage: number, victim: Unit, is_mh: boolean, is_spell: boolean, ignore_weapon_skill = false): [number, MeleeHitOutcome, number, boolean] {
+        let [damageDone, hitOutcome, cleanDamage] = super.calculateMeleeDamage(rawDamage, victim, is_mh, is_spell, ignore_weapon_skill);
 
-        if (hitOutcome === MeleeHitOutcome.MELEE_HIT_CRIT && is_mh && spell) {
+        if (hitOutcome === MeleeHitOutcome.MELEE_HIT_CRIT && is_spell) {
             damageDone *= 1.1; // impale
         }
         
-        return [damageDone, hitOutcome, cleanDamage, spell];
-    }
-
-    protected swingWeapon(time: number, target: Unit, is_mh: boolean, spell?: boolean) {
-        return super.swingWeapon(time, target, is_mh, is_mh && this.hasQueuedSpell);
+        return [damageDone, hitOutcome, cleanDamage, is_spell];
     }
 
     protected rewardRage(damage: number, is_attacker: boolean, time: number) {
@@ -54,16 +67,16 @@ export class Warrior extends Player {
         addRage = Math.trunc(addRage);
 
         if (this.log) this.log(time, `Gained ${Math.min(addRage, 100 - this.rage)} rage`);
-        this.rage = Math.min(100, this.rage + addRage);
+
+        this.power += addRage;
     }
 
-    updateProcs(time: number, is_mh: boolean, hitOutcome: MeleeHitOutcome, damageDone: number, cleanDamage: number, spell: boolean) {
+    updateProcs(time: number, is_mh: boolean, hitOutcome: MeleeHitOutcome, damageDone: number, cleanDamage: number, spell?: Spell) {
         super.updateProcs(time, is_mh, hitOutcome, damageDone, cleanDamage, spell);
 
         // calculate rage
-        if (is_mh && spell) { // TODO - do you gain rage from heroic strike if it is dodged/parried?
-            this.hasQueuedSpell = false;
-            this.rage = Math.max(0, this.rage - 12); // heroic strike
+        if (spell) { 
+            // TODO - do you gain rage from heroic strike if it is dodged/parried?
         } else {
             if ([MeleeHitOutcome.MELEE_HIT_PARRY, MeleeHitOutcome.MELEE_HIT_DODGE].includes(hitOutcome)) {
                 this.rewardRage(cleanDamage * 0.75, true, time); // TODO - where is this formula from?
@@ -72,7 +85,8 @@ export class Warrior extends Player {
             }
         }
 
-        if (![MeleeHitOutcome.MELEE_HIT_MISS, MeleeHitOutcome.MELEE_HIT_DODGE].includes(hitOutcome)) {
+        // instant attacks and misses/dodges don't use flurry charges // TODO - confirm
+        if (!(spell || spell === heroicStrikeSpell) && ![MeleeHitOutcome.MELEE_HIT_MISS, MeleeHitOutcome.MELEE_HIT_DODGE].includes(hitOutcome)) {
             this.flurryCount = Math.max(0, this.flurryCount - 1);
         }
         
@@ -85,10 +99,64 @@ export class Warrior extends Player {
         }
     }
 
+    swingWeapon(time: number, target: Unit, is_mh: boolean, spell?: Spell) {
+        if (!spell && this.queuedSpell && is_mh) {
+            this.queuedSpell.cast(time);
+            this.queuedSpell = undefined;
+        } else {
+            super.swingWeapon(time, target, is_mh, spell);
+        }
+
+        this.chooseAction(time); // TODO - since we probably gained rage, can cast a spell, but need to account for latency, reaction time (button mashing)
+    }
+
     chooseAction(time: number) {
-        if (this.rage >= 12 && !this.hasQueuedSpell) {
-            this.hasQueuedSpell = true;
+        // gcd spells
+        if (this.nextGCDTime <= time) {
+            if (this.bloodthirst.canCast(time)) {
+                this.bloodthirst.cast(time);
+            } else if (!this.bloodthirst.onCooldown(time)) {
+                return; // not a cooldown issue, wait for rage or gcd
+            } else if (this.whirlwind.canCast(time)) {
+                this.whirlwind.cast(time);
+            } else if (!this.whirlwind.onCooldown(time)) {
+                return; // not a cooldown issue, wait for rage or gcd
+            } else if (false && this.hamstring.canCast(time)) {
+                this.hamstring.cast(time);
+            }
+        }
+
+        if (this.rage >= 60 && !this.queuedSpell) {
+            this.queuedSpell = this.heroicStrike;
             if (this.log) this.log(time, 'queueing heroic strike');
         }
     }
 }
+
+const heroicStrikeSpell = new Spell("Heroic Strike", false, 12, 0, (player: Player, time: number) => {
+    const warrior = <Warrior>player;
+    warrior.swingWeapon(time, warrior.target!, true, heroicStrikeSpell);
+});
+
+const executeSpell = new Spell("Execute", true, 15, 0, (player: Player) => {
+    const warrior = <Warrior>player;
+});
+
+const bloodthirstSpell = new Spell("Bloodthirst", true, 30, 6000, (player: Player, time: number) => {
+    const warrior = <Warrior>player;
+    const rawDamage = warrior.ap * 0.45;
+
+    warrior.dealMeleeDamage(time, rawDamage, warrior.target!, true, bloodthirstSpell, true);
+});
+
+const whirlwindSpell = new Spell("Whirlwind", true, 25, 10000, (player: Player, time: number) => {
+    const warrior = <Warrior>player;
+    warrior.dealMeleeDamage(time, warrior.calculateRawDamage(true, false), warrior.target!, true, whirlwindSpell, false);
+});
+
+const hamstringSpell = new Spell("Hamstring", true, 10, 0, (player: Player, time: number) => {
+    const warrior = <Warrior>player;
+    warrior.dealMeleeDamage(time, 45, warrior.target!, true, hamstringSpell, false);
+});
+
+export const battleShout = new Buff("Battle Shout", 60 * 60, {ap: 290});

@@ -1,4 +1,5 @@
 import { clamp } from "./math.js";
+import { Player } from "./player.js";
 
 export class Unit {
     level: number;
@@ -18,12 +19,11 @@ export class Unit {
     }
 
     get dodgeChance() {
-        // TODO - should bosses have 5.6% dodge? source code looks like it is always 5
         return 5;
     }
 
-    calculateArmorReducedDamage(damage: number, attacker: Unit) {
-        const armor = Math.max(0, this.armor);
+    calculateArmorReducedDamage(damage: number, attacker: Player) {
+        const armor = Math.max(0, this.armor - attacker.buffManager.stats.armorPenetration);
         
         let tmpvalue = 0.1 * armor  / ((8.5 * attacker.level) + 40);
         tmpvalue /= (1 + tmpvalue);

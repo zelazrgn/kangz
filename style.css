@@ -5,6 +5,10 @@
     text-align: right;
 }
 
+#stats label {
+    white-space: nowrap;
+}
+
 #logContainer {
     font-family:
         "SFMono-Regular",

@@ -4,6 +4,8 @@ import { Stats } from "./stats.js";
 export enum WeaponType {
     MACE,
     SWORD,
+    AXE,
+    DAGGER,
 }
 
 export class Proc {

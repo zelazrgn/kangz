@@ -4,6 +4,8 @@ export var WeaponType;
 (function (WeaponType) {
     WeaponType[WeaponType["MACE"] = 0] = "MACE";
     WeaponType[WeaponType["SWORD"] = 1] = "SWORD";
+    WeaponType[WeaponType["AXE"] = 2] = "AXE";
+    WeaponType[WeaponType["DAGGER"] = 3] = "DAGGER";
 })(WeaponType || (WeaponType = {}));
 export class Proc {
     constructor(buff, ppm) {

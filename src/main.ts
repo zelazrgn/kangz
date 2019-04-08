@@ -1,7 +1,6 @@
-import { Warrior } from "./warrior.js";
+import { Warrior, battleShout } from "./warrior.js";
 import { emp_demo, anubisath, crusaderBuffMHProc, crusaderBuffOHProc } from "./weapon.js";
 import { Unit } from "./unit.js";
-import { MeleeHitOutcome } from "./player.js"
 import { warchiefs } from "./buff.js";
 import { StatValues } from "./stats.js";
 
@@ -33,7 +32,7 @@ function log(time: number, str: string) {
 }
 
 function loadStats() {
-    const res: StatValues = {};
+    const res: StatValues = { maceSkill: 309 };
     res.ap = parseInt(statEls.ap!.value);
     res.str = parseInt(statEls.str!.value);
     res.agi = parseInt(statEls.agi!.value);
@@ -53,27 +52,28 @@ class RealTimeSim {
 
     protected fast: boolean;
 
+    protected paused = false;
+
     constructor(fast = false) {
         this.fast = fast;
         
         const me = new Warrior(emp_demo, anubisath, loadStats(), log);
         me.buffManager.add(warchiefs, 0);
+        me.buffManager.add(battleShout, 0);
         me.mh.addProc(crusaderBuffMHProc);
         me.oh!.addProc(crusaderBuffOHProc);
 
         const boss = new Unit(63, 200);
         me.target = boss;
 
-        let totalDamage = 0;
-
         let duration = 0;
 
         const printDPS = setInterval(() => {
-            const dps = totalDamage / this.duration * 1000;
+            const dps = me.damageDone / this.duration * 1000;
             dpsEl.textContent = `Time: ${(this.duration / 1000).toFixed(3)} DPS: ${dps.toFixed(1)}`;
 
             if (this.fast) {
-                dpsEl.textContent += ` Speedup ${(this.duration / (performance.now() - this.startTime)).toFixed(2)}`
+                // dpsEl.textContent += ` Speedup ${(this.duration / (performance.now() - this.startTime)).toFixed(2)}`
             }
         }, 1000);
 
@@ -83,20 +83,22 @@ class RealTimeSim {
                 return;
             }
 
-            this.startTime = this.startTime || performance.now();
+            if (!this.paused) {
+                if (fast) {
+                    // temporary hack
+                    if (me.nextGCDTime > this.duration) {
+                        this.duration = Math.min(me.nextGCDTime, me.mh.nextSwingTime, me.oh!.nextSwingTime);
+                    } else {
+                        this.duration = Math.min(me.mh.nextSwingTime, me.oh!.nextSwingTime);
+                    }
+                } else {
+                    this.duration += 1000 / 60;
+                }
 
-            if (fast) {
-                this.duration = Math.min(me.mh.nextSwingTime, me.oh!.nextSwingTime);
-            } else {
-                const now = performance.now();
-                this.duration = now - this.startTime;
+                me.update(this.duration);
+
+                rageEl.textContent = `Rage: ${me.rage}`;
             }
-
-            const [damageDone, hitOutcome, is_mh] = me.updateMeleeAttackingState(this.duration);
-
-            totalDamage += damageDone;
-
-            rageEl.textContent = `Rage: ${me.rage}`;
 
             requestAnimationFrame(this.update);
         }
@@ -104,6 +106,10 @@ class RealTimeSim {
 
     start() {
         requestAnimationFrame(this.update);
+    }
+
+    pause() {
+        this.paused = !this.paused;
     }
 
     stop() {
@@ -120,4 +126,8 @@ document.getElementById('restartBtn')!.addEventListener('click', () => {
     dpsEl.innerHTML = "";
     currentSim = new RealTimeSim(fastModeEl.checked);
     currentSim.start();
+});
+
+document.getElementById('pauseBtn')!.addEventListener('click', () => {
+    currentSim.pause();
 });
