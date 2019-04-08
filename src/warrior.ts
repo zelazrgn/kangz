@@ -66,7 +66,7 @@ export class Warrior extends Player {
 
         addRage = Math.trunc(addRage);
 
-        if (this.log) this.log(time, `Gained ${Math.min(addRage, 100 - this.rage)} rage`);
+        if (this.log) this.log(time, `Gained ${Math.min(addRage, 100 - this.rage)} rage (${Math.min(100, this.power + addRage)})`);
 
         this.power += addRage;
     }
@@ -101,8 +101,14 @@ export class Warrior extends Player {
 
     swingWeapon(time: number, target: Unit, is_mh: boolean, spell?: Spell) {
         if (!spell && this.queuedSpell && is_mh && !this.extraAttackCount) { // don't cast heroic strike if it is an extra attack
-            this.queuedSpell.cast(time);
-            this.queuedSpell = undefined;
+            if (this.queuedSpell.canCast(time)) {
+                this.queuedSpell.cast(time);
+                this.queuedSpell = undefined;
+            } else {
+                if (this.log) this.log(time, `canceled Heroic Strike, don't have enough rage (${this.rage})`);
+                this.queuedSpell = undefined; // didn't have enough rage TODO - gaining an extra attack also resets heroic strike
+                super.swingWeapon(time, target, is_mh);
+            }
         } else {
             super.swingWeapon(time, target, is_mh, spell);
         }
@@ -121,7 +127,7 @@ export class Warrior extends Player {
                 this.whirlwind.cast(time);
             } else if (!this.whirlwind.onCooldown(time)) {
                 return; // not on cooldown, wait for rage or gcd
-            } else if (false && this.hamstring.canCast(time)) {
+            } else if (this.hamstring.canCast(time)) {
                 this.hamstring.cast(time);
             }
         }

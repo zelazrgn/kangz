@@ -46,7 +46,7 @@ export class Warrior extends Player {
         }
         addRage = Math.trunc(addRage);
         if (this.log)
-            this.log(time, `Gained ${Math.min(addRage, 100 - this.rage)} rage`);
+            this.log(time, `Gained ${Math.min(addRage, 100 - this.rage)} rage (${Math.min(100, this.power + addRage)})`);
         this.power += addRage;
     }
     updateProcs(time, is_mh, hitOutcome, damageDone, cleanDamage, spell) {
@@ -74,8 +74,16 @@ export class Warrior extends Player {
     }
     swingWeapon(time, target, is_mh, spell) {
         if (!spell && this.queuedSpell && is_mh && !this.extraAttackCount) {
-            this.queuedSpell.cast(time);
-            this.queuedSpell = undefined;
+            if (this.queuedSpell.canCast(time)) {
+                this.queuedSpell.cast(time);
+                this.queuedSpell = undefined;
+            }
+            else {
+                if (this.log)
+                    this.log(time, `canceled Heroic Strike, don't have enough rage (${this.rage})`);
+                this.queuedSpell = undefined;
+                super.swingWeapon(time, target, is_mh);
+            }
         }
         else {
             super.swingWeapon(time, target, is_mh, spell);
@@ -96,7 +104,7 @@ export class Warrior extends Player {
             else if (!this.whirlwind.onCooldown(time)) {
                 return;
             }
-            else if (false && this.hamstring.canCast(time)) {
+            else if (this.hamstring.canCast(time)) {
                 this.hamstring.cast(time);
             }
         }
