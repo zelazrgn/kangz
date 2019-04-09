@@ -7,6 +7,8 @@ const logEl = document.getElementById('logContainer');
 const dpsEl = document.getElementById('dpsContainer');
 const rageEl = document.getElementById('rageContainer');
 const fastModeEl = document.getElementById('fastMode');
+const disableLogEl = document.getElementById('disableLog');
+const mhSelectEl = document.getElementById('mhSelect');
 const statContainerEL = document.getElementById('stats');
 statContainerEL.getElementsByTagName("input");
 const statEls = {};
@@ -31,7 +33,6 @@ function loadStats() {
     res.crit = parseInt(statEls.crit.value);
     return res;
 }
-const mhSelectEl = document.getElementById('mhSelect');
 class RealTimeSim {
     constructor(fast = false) {
         this.requestStop = false;
@@ -39,7 +40,7 @@ class RealTimeSim {
         this.duration = 0;
         this.paused = false;
         this.fast = fast;
-        const me = new Warrior(mhSelectEl.value === 'empyrean' ? emp_demo : ironfoe, anubisath, loadStats(), log);
+        const me = new Warrior(mhSelectEl.value === 'empyrean' ? emp_demo : ironfoe, anubisath, loadStats(), !disableLogEl.checked ? log : undefined);
         me.buffManager.add(warchiefs, 0);
         me.buffManager.add(battleShout, 0);
         me.mh.addProc(crusaderBuffMHProc);
