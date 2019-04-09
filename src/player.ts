@@ -109,11 +109,9 @@ export class Player extends Unit {
         }
     }
 
-    protected calculateCritChance(victim: Unit) {
+    protected calculateCritChance() {
         let crit = this.buffManager.stats.crit;
         crit += this.buffManager.stats.agi * this.buffManager.stats.statMult / 20;
-
-        crit -= (victim.defenseSkill - 300) * 0.04; // TODO - look at this
 
         return crit;
     }
@@ -177,8 +175,9 @@ export class Player extends Unit {
         // rounding instead of truncating because 19.4 * 100 was truncating to 1939.
         const miss_chance = Math.round(this.calculateMissChance(victim, is_mh, is_spell, ignore_weapon_skill) * 100);
         const dodge_chance = Math.round(victim.dodgeChance * 100);
-        const crit_chance = Math.round(this.calculateCritChance(victim) * 100);
+        const crit_chance = Math.round(this.calculateCritChance() * 100);
 
+        // weapon skill - target defense (usually negative)
         const skillBonus = 4 * (this.calculateWeaponSkillValue(is_mh, ignore_weapon_skill) - victim.maxSkillForLevel);
 
         tmp = miss_chance;
@@ -202,7 +201,7 @@ export class Player extends Unit {
             }
         }
 
-        tmp = crit_chance;
+        tmp = crit_chance + skillBonus;
 
         if (tmp > 0 && roll < (sum += crit_chance)) {
             return MeleeHitOutcome.MELEE_HIT_CRIT;
@@ -258,12 +257,7 @@ export class Player extends Unit {
     updateProcs(time: number, is_mh: boolean, hitOutcome: MeleeHitOutcome, damageDone: number, cleanDamage: number, spell?: Spell) {
         if (![MeleeHitOutcome.MELEE_HIT_MISS, MeleeHitOutcome.MELEE_HIT_DODGE].includes(hitOutcome)) {
             // TODO - what is the order of checking for procs like hoj, ironfoe and windfury
-            const weapon = is_mh ? this.mh : this.oh!;
-            weapon.proc(time);
-
-            if (this.extraAttackCount === 0) {
-                console.log("check for extra attack procs");
-            }
+            (is_mh ? this.mh : this.oh!).proc(time);
         }
     }
 
@@ -287,8 +281,10 @@ export class Player extends Unit {
     }
 
     protected swingWeapon(time: number, target: Unit, is_mh: boolean, spell?: Spell) {
-        // TODO - acount for extra attacks
-        
+        if (this.extraAttackCount && spell) {
+            throw new Error("cannot cast melee swing spell when you have extra attacks");
+        }
+
         const rawDamage = this.calculateRawDamage(is_mh, spell !== undefined);
 
         this.dealMeleeDamage(time, rawDamage, target, is_mh, spell);

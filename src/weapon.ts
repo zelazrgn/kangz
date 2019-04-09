@@ -1,6 +1,8 @@
 import { Buff } from "./buff.js";
 import { Player } from "./player.js";
 import { Stats, StatValues } from "./stats.js";
+import { Spell } from "./spell.js";
+import { SpellBuff, ExtraAttack } from "./data/spells.js";
 
 export enum WeaponType {
     MACE,
@@ -9,20 +11,24 @@ export enum WeaponType {
     DAGGER,
 }
 
-export class Proc {
-    protected buff: Buff;
-    protected ppm: number;
+type ppm = {ppm: number};
+type chance = {chance: number};
+type rate = ppm | chance;
 
-    constructor(buff: Buff, ppm: number) {
-        this.buff = buff;
-        this.ppm = ppm;
+export class Proc {
+    protected spell: Spell;
+    protected rate: rate;
+
+    constructor(spell: Spell, rate: rate) {
+        this.spell = spell;
+        this.rate = rate;
     }
 
-    run(weapon: Weapon) {
-        const chance = this.ppm * weapon.speed / 60;
+    run(player: Player, weapon: Weapon, time: number) {
+        const chance = (<chance>this.rate).chance || (<ppm>this.rate).ppm * weapon.speed / 60;
 
         if (Math.random() <= chance) {
-            return this.buff;
+            this.spell.cast(player, time)
         }
     }
 }
@@ -51,10 +57,7 @@ export class WeaponEquiped {
 
     proc(time: number) {
         for (let proc of this.procs) {
-            const maybeBuff = proc.run(this.weapon);
-            if (maybeBuff) {
-                this.player.buffManager.add(maybeBuff, time);
-            }
+            proc.run(this.player, this.weapon, time);
         }
     }
 }
@@ -83,8 +86,5 @@ export class Weapon {
 
 // NOTE: to simplify the code, treating these as two separate buffs since they stack
 // crusader buffs apparently can be further stacked by swapping weapons but not going to bother with that
-export const crusaderBuffMHProc = new Proc(new Buff("Crusader MH", 15, new Stats({str: 100})), 1);
-export const crusaderBuffOHProc = new Proc(new Buff("Crusader OH", 15, new Stats({str: 100})), 1);
-
-export const emp_demo = new Weapon(WeaponType.MACE, 94, 175, 2.80, {}, new Proc(new Buff("Empyrean Demolisher", 10, {haste: 1.2}), 1));
-export const anubisath = new Weapon(WeaponType.MACE, 66, 123, 1.80, { maceSkill: 4, ap: 32 });
+export const crusaderBuffMHProc = new Proc(new SpellBuff(new Buff("Crusader MH", 15, new Stats({str: 100}))), {ppm: 1});
+export const crusaderBuffOHProc = new Proc(new SpellBuff(new Buff("Crusader OH", 15, new Stats({str: 100}))), {ppm: 1});

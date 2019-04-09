@@ -82,10 +82,9 @@ export class Player extends Unit {
                 }
         }
     }
-    calculateCritChance(victim) {
+    calculateCritChance() {
         let crit = this.buffManager.stats.crit;
         crit += this.buffManager.stats.agi * this.buffManager.stats.statMult / 20;
-        crit -= (victim.defenseSkill - 300) * 0.04;
         return crit;
     }
     calculateMissChance(victim, is_mh, is_spell, ignore_weapon_skill = false) {
@@ -135,7 +134,7 @@ export class Player extends Unit {
         let tmp = 0;
         const miss_chance = Math.round(this.calculateMissChance(victim, is_mh, is_spell, ignore_weapon_skill) * 100);
         const dodge_chance = Math.round(victim.dodgeChance * 100);
-        const crit_chance = Math.round(this.calculateCritChance(victim) * 100);
+        const crit_chance = Math.round(this.calculateCritChance() * 100);
         const skillBonus = 4 * (this.calculateWeaponSkillValue(is_mh, ignore_weapon_skill) - victim.maxSkillForLevel);
         tmp = miss_chance;
         if (tmp > 0 && roll < (sum += tmp)) {
@@ -152,7 +151,7 @@ export class Player extends Unit {
                 return MeleeHitOutcome.MELEE_HIT_GLANCING;
             }
         }
-        tmp = crit_chance;
+        tmp = crit_chance + skillBonus;
         if (tmp > 0 && roll < (sum += crit_chance)) {
             return MeleeHitOutcome.MELEE_HIT_CRIT;
         }
@@ -198,11 +197,7 @@ export class Player extends Unit {
     }
     updateProcs(time, is_mh, hitOutcome, damageDone, cleanDamage, spell) {
         if (![MeleeHitOutcome.MELEE_HIT_MISS, MeleeHitOutcome.MELEE_HIT_DODGE].includes(hitOutcome)) {
-            const weapon = is_mh ? this.mh : this.oh;
-            weapon.proc(time);
-            if (this.extraAttackCount === 0) {
-                console.log("check for extra attack procs");
-            }
+            (is_mh ? this.mh : this.oh).proc(time);
         }
     }
     dealMeleeDamage(time, rawDamage, target, is_mh, spell, ignore_weapon_skill = false) {
@@ -221,6 +216,9 @@ export class Player extends Unit {
         this.buffManager.recalculateStats();
     }
     swingWeapon(time, target, is_mh, spell) {
+        if (this.extraAttackCount && spell) {
+            throw new Error("cannot cast melee swing spell when you have extra attacks");
+        }
         const rawDamage = this.calculateRawDamage(is_mh, spell !== undefined);
         this.dealMeleeDamage(time, rawDamage, target, is_mh, spell);
         const [thisWeapon, otherWeapon] = is_mh ? [this.mh, this.oh] : [this.oh, this.mh];

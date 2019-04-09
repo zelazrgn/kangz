@@ -1,4 +1,6 @@
 import { Stats, StatValues } from "./stats.js";
+import { Spell } from "./spell.js";
+import { Player } from "./player.js";
 
 class BuffApplication {
     buff: Buff;

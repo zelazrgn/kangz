@@ -5,7 +5,7 @@ export class Spell {
     is_gcd: boolean;
     cost: number;
     cooldown: number;
-    spellF: (player: Player, time: number) => void;
+    protected spellF: (player: Player, time: number) => void;
 
     constructor(name: string, is_gcd: boolean, cost: number, cooldown: number, spellF: (player: Player, time: number) => void) {
         this.name = name;
@@ -13,6 +13,10 @@ export class Spell {
         this.cooldown = cooldown;
         this.is_gcd = is_gcd;
         this.spellF = spellF;
+    }
+
+    cast(player: Player, time: number) {
+        return this.spellF(player, time);
     }
 }
 
@@ -57,7 +61,7 @@ export class LearnedSpell {
         
         this.caster.power -= this.spell.cost;
 
-        this.spell.spellF(this.caster, time);
+        this.spell.cast(this.caster, time);
 
         this.cooldown = time + this.spell.cooldown;
 

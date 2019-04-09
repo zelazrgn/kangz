@@ -5,7 +5,14 @@
     text-align: right;
 }
 
-#stats label {
+#items {
+    display: grid;
+    grid-template-columns: min-content min-content;
+    grid-column-gap: 10px;
+    text-align: right;
+}
+
+#stats label, #items label {
     white-space: nowrap;
 }
 

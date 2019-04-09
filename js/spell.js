@@ -6,6 +6,9 @@ export class Spell {
         this.is_gcd = is_gcd;
         this.spellF = spellF;
     }
+    cast(player, time) {
+        return this.spellF(player, time);
+    }
 }
 export class LearnedSpell {
     constructor(spell, caster) {
@@ -36,7 +39,7 @@ export class LearnedSpell {
             this.caster.nextGCDTime = time + 1500;
         }
         this.caster.power -= this.spell.cost;
-        this.spell.spellF(this.caster, time);
+        this.spell.cast(this.caster, time);
         this.cooldown = time + this.spell.cooldown;
         return true;
     }

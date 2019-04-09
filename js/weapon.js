@@ -1,5 +1,6 @@
 import { Buff } from "./buff.js";
 import { Stats } from "./stats.js";
+import { SpellBuff } from "./data/spells.js";
 export var WeaponType;
 (function (WeaponType) {
     WeaponType[WeaponType["MACE"] = 0] = "MACE";
@@ -8,14 +9,14 @@ export var WeaponType;
     WeaponType[WeaponType["DAGGER"] = 3] = "DAGGER";
 })(WeaponType || (WeaponType = {}));
 export class Proc {
-    constructor(buff, ppm) {
-        this.buff = buff;
-        this.ppm = ppm;
+    constructor(spell, rate) {
+        this.spell = spell;
+        this.rate = rate;
     }
-    run(weapon) {
-        const chance = this.ppm * weapon.speed / 60;
+    run(player, weapon, time) {
+        const chance = this.rate.chance || this.rate.ppm * weapon.speed / 60;
         if (Math.random() <= chance) {
-            return this.buff;
+            this.spell.cast(player, time);
         }
     }
 }
@@ -34,10 +35,7 @@ export class WeaponEquiped {
     }
     proc(time) {
         for (let proc of this.procs) {
-            const maybeBuff = proc.run(this.weapon);
-            if (maybeBuff) {
-                this.player.buffManager.add(maybeBuff, time);
-            }
+            proc.run(this.player, this.weapon, time);
         }
     }
 }
@@ -54,8 +52,6 @@ export class Weapon {
         return (this.min + this.max) / 2 / this.speed;
     }
 }
-export const crusaderBuffMHProc = new Proc(new Buff("Crusader MH", 15, new Stats({ str: 100 })), 1);
-export const crusaderBuffOHProc = new Proc(new Buff("Crusader OH", 15, new Stats({ str: 100 })), 1);
-export const emp_demo = new Weapon(WeaponType.MACE, 94, 175, 2.80, {}, new Proc(new Buff("Empyrean Demolisher", 10, { haste: 1.2 }), 1));
-export const anubisath = new Weapon(WeaponType.MACE, 66, 123, 1.80, { maceSkill: 4, ap: 32 });
+export const crusaderBuffMHProc = new Proc(new SpellBuff(new Buff("Crusader MH", 15, new Stats({ str: 100 }))), { ppm: 1 });
+export const crusaderBuffOHProc = new Proc(new SpellBuff(new Buff("Crusader OH", 15, new Stats({ str: 100 }))), { ppm: 1 });
 //# sourceMappingURL=weapon.js.map

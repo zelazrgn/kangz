@@ -1,5 +1,6 @@
 import { Warrior, battleShout } from "./warrior.js";
-import { emp_demo, anubisath, crusaderBuffMHProc, crusaderBuffOHProc } from "./weapon.js";
+import { crusaderBuffMHProc, crusaderBuffOHProc } from "./weapon.js";
+import { emp_demo, anubisath, ironfoe } from "./data/items.js";
 import { Unit } from "./unit.js";
 import { warchiefs } from "./buff.js";
 import { StatValues } from "./stats.js";
@@ -7,7 +8,7 @@ import { StatValues } from "./stats.js";
 const logEl = document.getElementById('logContainer')!;
 const dpsEl = document.getElementById('dpsContainer')!;
 const rageEl = document.getElementById('rageContainer')!;
-const fastModeEl: HTMLInputElement = <HTMLInputElement> document.getElementById('fastMode')!;
+const fastModeEl: HTMLInputElement = <HTMLInputElement>document.getElementById('fastMode')!;
 
 const statContainerEL = document.getElementById('stats')!;
 statContainerEL.getElementsByTagName("input");
@@ -42,6 +43,8 @@ function loadStats() {
     return res;
 }
 
+const mhSelectEl = <HTMLInputElement>document.getElementById('mhSelect')!;
+
 class RealTimeSim {
     protected update: () => void;
     protected requestStop = false;
@@ -57,7 +60,7 @@ class RealTimeSim {
     constructor(fast = false) {
         this.fast = fast;
         
-        const me = new Warrior(emp_demo, anubisath, loadStats(), log);
+        const me = new Warrior(mhSelectEl.value === 'empyrean' ? emp_demo : ironfoe, anubisath, loadStats(), log);
         me.buffManager.add(warchiefs, 0);
         me.buffManager.add(battleShout, 0);
         me.mh.addProc(crusaderBuffMHProc);
@@ -86,7 +89,9 @@ class RealTimeSim {
             if (!this.paused) {
                 if (fast) {
                     // temporary hack
-                    if (me.nextGCDTime > this.duration) {
+                    if (me.extraAttackCount) {
+                        // don't increment duration (but I really should because the server doesn't loop instantly)
+                    } else if (me.nextGCDTime > this.duration) {
                         this.duration = Math.min(me.nextGCDTime, me.mh.nextSwingTime, me.oh!.nextSwingTime);
                     } else {
                         this.duration = Math.min(me.mh.nextSwingTime, me.oh!.nextSwingTime);

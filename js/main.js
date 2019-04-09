@@ -1,5 +1,6 @@
 import { Warrior, battleShout } from "./warrior.js";
-import { emp_demo, anubisath, crusaderBuffMHProc, crusaderBuffOHProc } from "./weapon.js";
+import { crusaderBuffMHProc, crusaderBuffOHProc } from "./weapon.js";
+import { emp_demo, anubisath, ironfoe } from "./data/items.js";
 import { Unit } from "./unit.js";
 import { warchiefs } from "./buff.js";
 const logEl = document.getElementById('logContainer');
@@ -30,6 +31,7 @@ function loadStats() {
     res.crit = parseInt(statEls.crit.value);
     return res;
 }
+const mhSelectEl = document.getElementById('mhSelect');
 class RealTimeSim {
     constructor(fast = false) {
         this.requestStop = false;
@@ -37,7 +39,7 @@ class RealTimeSim {
         this.duration = 0;
         this.paused = false;
         this.fast = fast;
-        const me = new Warrior(emp_demo, anubisath, loadStats(), log);
+        const me = new Warrior(mhSelectEl.value === 'empyrean' ? emp_demo : ironfoe, anubisath, loadStats(), log);
         me.buffManager.add(warchiefs, 0);
         me.buffManager.add(battleShout, 0);
         me.mh.addProc(crusaderBuffMHProc);
@@ -58,7 +60,9 @@ class RealTimeSim {
             }
             if (!this.paused) {
                 if (fast) {
-                    if (me.nextGCDTime > this.duration) {
+                    if (me.extraAttackCount) {
+                    }
+                    else if (me.nextGCDTime > this.duration) {
                         this.duration = Math.min(me.nextGCDTime, me.mh.nextSwingTime, me.oh.nextSwingTime);
                     }
                     else {

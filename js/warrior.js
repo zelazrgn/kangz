@@ -73,10 +73,17 @@ export class Warrior extends Player {
         }
     }
     swingWeapon(time, target, is_mh, spell) {
-        if (!spell && this.queuedSpell && is_mh && !this.extraAttackCount) {
+        if (this.queuedSpell && this.extraAttackCount) {
+            if (this.log)
+                this.log(time, `canceled Heroic Strike due to extra attack`);
+            this.queuedSpell = undefined;
+        }
+        if (!spell && this.queuedSpell && is_mh) {
             if (this.queuedSpell.canCast(time)) {
-                this.queuedSpell.cast(time);
+                const spell = this.queuedSpell;
                 this.queuedSpell = undefined;
+                spell.cast(time);
+                return;
             }
             else {
                 if (this.log)
@@ -88,7 +95,9 @@ export class Warrior extends Player {
         else {
             super.swingWeapon(time, target, is_mh, spell);
         }
-        this.chooseAction(time);
+        if (!this.extraAttackCount) {
+            this.chooseAction(time);
+        }
     }
     chooseAction(time) {
         if (this.nextGCDTime <= time) {
@@ -119,7 +128,7 @@ const heroicStrikeSpell = new Spell("Heroic Strike", false, 12, 0, (player, time
     const warrior = player;
     warrior.swingWeapon(time, warrior.target, true, heroicStrikeSpell);
 });
-const executeSpell = new Spell("Execute", true, 15, 0, (player) => {
+const executeSpell = new Spell("Execute", true, 10, 0, (player) => {
     const warrior = player;
 });
 const bloodthirstSpell = new Spell("Bloodthirst", true, 30, 6000, (player, time) => {

@@ -100,10 +100,17 @@ export class Warrior extends Player {
     }
 
     swingWeapon(time: number, target: Unit, is_mh: boolean, spell?: Spell) {
-        if (!spell && this.queuedSpell && is_mh && !this.extraAttackCount) { // don't cast heroic strike if it is an extra attack
+        if (this.queuedSpell && this.extraAttackCount) {
+            if (this.log) this.log(time, `canceled Heroic Strike due to extra attack`);
+            this.queuedSpell = undefined;
+        }
+
+        if (!spell && this.queuedSpell && is_mh) {
             if (this.queuedSpell.canCast(time)) {
-                this.queuedSpell.cast(time);
+                const spell = this.queuedSpell;
                 this.queuedSpell = undefined;
+                spell.cast(time); // this spell will call swingWeapon
+                return;
             } else {
                 if (this.log) this.log(time, `canceled Heroic Strike, don't have enough rage (${this.rage})`);
                 this.queuedSpell = undefined; // didn't have enough rage TODO - gaining an extra attack also resets heroic strike
@@ -113,7 +120,9 @@ export class Warrior extends Player {
             super.swingWeapon(time, target, is_mh, spell);
         }
 
-        this.chooseAction(time); // TODO - since we probably gained rage, can cast a spell, but need to account for latency, reaction time (button mashing)
+        if (!this.extraAttackCount) {
+            this.chooseAction(time); // TODO - since we probably gained rage, can cast a spell, but need to account for latency, reaction time (button mashing)
+        }
     }
 
     chooseAction(time: number) {
@@ -144,7 +153,7 @@ const heroicStrikeSpell = new Spell("Heroic Strike", false, 12, 0, (player: Play
     warrior.swingWeapon(time, warrior.target!, true, heroicStrikeSpell);
 });
 
-const executeSpell = new Spell("Execute", true, 15, 0, (player: Player) => {
+const executeSpell = new Spell("Execute", true, 10, 0, (player: Player) => {
     const warrior = <Warrior>player;
 });
 
