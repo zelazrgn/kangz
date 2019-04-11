@@ -15,11 +15,11 @@ export enum ItemSlot {
     WRIST = 1 << 9,
     HANDS = 1 << 10,
     WAIST = 1 << 11,
-    LEGS = 1 << 11,
-    FEET = 1 << 12,
-    RING1 = 1 << 13,
-    RING2 = 1 << 14,
-    RANGED = 1 << 15,
+    LEGS = 1 << 12,
+    FEET = 1 << 13,
+    RING1 = 1 << 14,
+    RING2 = 1 << 15,
+    RANGED = 1 << 16,
 }
 
 export interface ItemDescription {

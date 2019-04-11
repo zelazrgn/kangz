@@ -13,11 +13,11 @@ export var ItemSlot;
     ItemSlot[ItemSlot["WRIST"] = 512] = "WRIST";
     ItemSlot[ItemSlot["HANDS"] = 1024] = "HANDS";
     ItemSlot[ItemSlot["WAIST"] = 2048] = "WAIST";
-    ItemSlot[ItemSlot["LEGS"] = 2048] = "LEGS";
-    ItemSlot[ItemSlot["FEET"] = 4096] = "FEET";
-    ItemSlot[ItemSlot["RING1"] = 8192] = "RING1";
-    ItemSlot[ItemSlot["RING2"] = 16384] = "RING2";
-    ItemSlot[ItemSlot["RANGED"] = 32768] = "RANGED";
+    ItemSlot[ItemSlot["LEGS"] = 4096] = "LEGS";
+    ItemSlot[ItemSlot["FEET"] = 8192] = "FEET";
+    ItemSlot[ItemSlot["RING1"] = 16384] = "RING1";
+    ItemSlot[ItemSlot["RING2"] = 32768] = "RING2";
+    ItemSlot[ItemSlot["RANGED"] = 65536] = "RANGED";
 })(ItemSlot || (ItemSlot = {}));
 export var WeaponType;
 (function (WeaponType) {
