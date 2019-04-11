@@ -24,6 +24,9 @@ export class Warrior extends Player {
     get ap() {
         return this.level * 3 - 20 + this.buffManager.stats.ap + this.buffManager.stats.str * this.buffManager.stats.statMult * 2;
     }
+    calculateCritChance() {
+        return 5 + 3 + super.calculateCritChance();
+    }
     calculateRawDamage(is_mh, is_spell) {
         const bonus = (is_mh && is_spell) ? 157 : 0;
         return bonus + super.calculateRawDamage(is_mh, is_spell);
@@ -61,7 +64,9 @@ export class Warrior extends Player {
                 this.rewardRage(damageDone, true, time);
             }
         }
-        if (!(spell || spell === heroicStrikeSpell) && ![MeleeHitOutcome.MELEE_HIT_MISS, MeleeHitOutcome.MELEE_HIT_DODGE].includes(hitOutcome)) {
+        if (!this.doingExtraAttacks
+            && !(spell || spell === heroicStrikeSpell)
+            && ![MeleeHitOutcome.MELEE_HIT_MISS, MeleeHitOutcome.MELEE_HIT_DODGE].includes(hitOutcome)) {
             this.flurryCount = Math.max(0, this.flurryCount - 1);
         }
         if (hitOutcome === MeleeHitOutcome.MELEE_HIT_CRIT) {
@@ -144,5 +149,5 @@ const hamstringSpell = new Spell("Hamstring", true, 10, 0, (player, time) => {
     const warrior = player;
     warrior.dealMeleeDamage(time, 45, warrior.target, true, hamstringSpell, false);
 });
-export const battleShout = new Buff("Battle Shout", 60 * 60, { ap: 290 });
+export const battleShout = new Buff("Battle Shout", 2 * 60, { ap: 290 });
 //# sourceMappingURL=warrior.js.map

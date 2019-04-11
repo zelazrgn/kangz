@@ -1,4 +1,6 @@
-import { Player, MeleeHitOutcome, hitOutcomeString } from "./player.js";
+import { Player } from "./player.js";
+import { Buff } from "./buff.js";
+import { WeaponDescription } from "./item.js";
 
 export class Spell {
     name: string;
@@ -66,5 +68,47 @@ export class LearnedSpell {
         this.cooldown = time + this.spell.cooldown;
 
         return true;
+    }
+}
+
+export class ExtraAttack extends Spell {
+    constructor(name: string, count: number) {
+        super(name, false, 0, 0, (player: Player, time: number) => {
+            if (player.extraAttackCount) {
+                return;
+            }
+            player.extraAttackCount += count; // LH code does not allow multiple auto attacks to stack if they proc together. Blizzlike may allow them to stack 
+            if (player.log) player.log(time, `Gained ${count} extra attacks from ${name}`);
+        });
+    }
+}
+
+export class SpellBuff extends Spell {
+    constructor(buff: Buff) {
+        super(`SpellBuff(${buff.name})`, false, 0, 0, (player: Player, time: number) => {
+            player.buffManager.add(buff, time);
+        });
+    }
+}
+
+type ppm = {ppm: number};
+type chance = {chance: number};
+type rate = ppm | chance;
+
+export class Proc {
+    protected spell: Spell;
+    protected rate: rate;
+
+    constructor(spell: Spell, rate: rate) {
+        this.spell = spell;
+        this.rate = rate;
+    }
+
+    run(player: Player, weapon: WeaponDescription, time: number) {
+        const chance = (<chance>this.rate).chance || (<ppm>this.rate).ppm * weapon.speed / 60;
+
+        if (Math.random() <= chance) {
+            this.spell.cast(player, time)
+        }
     }
 }

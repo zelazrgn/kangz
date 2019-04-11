@@ -65,4 +65,4 @@ export class WeaponEquiped extends ItemEquiped {
         }
     }
 }
-//# sourceMappingURL=weapon.js.map
+//# sourceMappingURL=items.js.map

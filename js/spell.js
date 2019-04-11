@@ -44,4 +44,35 @@ export class LearnedSpell {
         return true;
     }
 }
+export class ExtraAttack extends Spell {
+    constructor(name, count) {
+        super(name, false, 0, 0, (player, time) => {
+            if (player.extraAttackCount) {
+                return;
+            }
+            player.extraAttackCount += count;
+            if (player.log)
+                player.log(time, `Gained ${count} extra attacks from ${name}`);
+        });
+    }
+}
+export class SpellBuff extends Spell {
+    constructor(buff) {
+        super(`SpellBuff(${buff.name})`, false, 0, 0, (player, time) => {
+            player.buffManager.add(buff, time);
+        });
+    }
+}
+export class Proc {
+    constructor(spell, rate) {
+        this.spell = spell;
+        this.rate = rate;
+    }
+    run(player, weapon, time) {
+        const chance = this.rate.chance || this.rate.ppm * weapon.speed / 60;
+        if (Math.random() <= chance) {
+            this.spell.cast(player, time);
+        }
+    }
+}
 //# sourceMappingURL=spell.js.map

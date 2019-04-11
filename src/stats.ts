@@ -50,6 +50,7 @@ export class Stats {
     }
 
     add(s: StatValues) {
+        this.ap += (s.ap || 0);
         this.str += (s.str || 0);
         this.agi += (s.agi || 0);
         this.hit += (s.hit || 0);

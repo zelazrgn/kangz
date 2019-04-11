@@ -17,6 +17,7 @@ export class Stats {
         this.daggerSkill = (s && s.daggerSkill) || 0;
     }
     add(s) {
+        this.ap += (s.ap || 0);
         this.str += (s.str || 0);
         this.agi += (s.agi || 0);
         this.hit += (s.hit || 0);

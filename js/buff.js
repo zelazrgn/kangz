@@ -1,11 +1,18 @@
 import { Stats } from "./stats.js";
 class BuffApplication {
-    constructor(buff, applyTime) {
+    constructor(buff, applyTime, stacks) {
         this.buff = buff;
+        this.initialStacks = stacks;
         this.refresh(applyTime);
     }
     refresh(time) {
         this.expirationTime = time + this.buff.duration * 1000;
+        if (this.initialStacks) {
+            this.stacks = this.initialStacks;
+        }
+        if (this.buff.duration > 60) {
+            this.expirationTime = Number.MAX_SAFE_INTEGER;
+        }
     }
 }
 export class BuffManager {
@@ -72,7 +79,4 @@ export class Buff {
         }
     }
 }
-export const blessingOfMight = new Buff("Blessing of Might", 15 * 60, { statMult: 1.1 });
-export const zandalar = new Buff("Spirit of Zandalar", 2 * 60 * 60, { statMult: 1.15 });
-export const warchiefs = new Buff("Warchief's Blessing", 1 * 60 * 60, { haste: 1.15 });
 //# sourceMappingURL=buff.js.map

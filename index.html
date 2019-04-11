@@ -5,21 +5,20 @@
     <body>
         <div id="stats">
             <label for="ap">Raw AP</label>
-            <input type="number" id="ap" name="ap" min="0" value="1000">
-            <label for="str">STR</label>
+            <input type="number" id="ap" name="ap" min="0" value="0">
+            <label for="str">Str</label>
             <input type="number" id="str" name="str" min="0" value="0">
-            <label for="agi">AGI</label>
+            <label for="agi">Agi</label>
             <input type="number" id="agi" name="agi" min="0" value="0">
-            <label for="hit">HIT</label>
-            <input type="number" id="hit" name="hit" min="0" value="8">
-            <label for="crit">CRIT</label>
-            <input type="number" id="crit" name="crit" min="0" value="20">
+            <label for="hit">Hit</label>
+            <input type="number" id="hit" name="hit" min="0" value="0">
+            <label for="crit">Crit</label>
+            <input type="number" id="crit" name="crit" min="0" value="0">
         </div>
         <div id="items">
-            <label for "mhSelect">MH Weapon</label>
-            <select name="mhSelect" id="mhSelect">
-                <option value="empyrean" selected>Empyrean Demolisher</option>
-                <option value="ironfoe">Ironfoe</option>
+            <label for="race">Race</label>
+            <select id="race" name="race">
+                <option value="0">Human</option>
             </select>
         </div>
         <input type="checkbox" id="fastMode" name="fastMode">
@@ -28,9 +27,10 @@
         <label for="disableLog">Disable Log</label>
         <button id="restartBtn" type="button">Restart</button>
         <button id="pauseBtn" type="button">Pause</button>
+        <div id="myStats"></div>
         <div id="logContainer"></div>
-        <div id="dpsContainer"></div>
         <div id="rageContainer"></div>
+        <div id="dpsContainer"></div>
     </body>
     <script type="module" src="./js/main.js"></script>
 </html>

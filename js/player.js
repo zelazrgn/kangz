@@ -1,4 +1,4 @@
-import { WeaponEquiped, WeaponType } from "./weapon.js";
+import { WeaponEquiped, WeaponType, ItemEquiped, ItemSlot, isEquipedWeapon, isWeapon } from "./item.js";
 import { Unit } from "./unit.js";
 import { urand, clamp } from "./math.js";
 import { BuffManager } from "./buff.js";
@@ -30,29 +30,56 @@ export const hitOutcomeString = {
 };
 const skillDiffToReduction = [1, 0.9926, 0.9840, 0.9742, 0.9629, 0.9500, 0.9351, 0.9180, 0.8984, 0.8759, 0.8500, 0.8203, 0.7860, 0.7469, 0.7018];
 export class Player extends Unit {
-    constructor(mh, oh, stats, logCallback) {
+    constructor(stats, logCallback) {
         super(60, 0);
+        this.items = new Map();
+        this.procs = [];
         this.nextGCDTime = 0;
         this.extraAttackCount = 0;
+        this.doingExtraAttacks = false;
         this.damageDone = 0;
-        const combinedStats = new Stats(stats);
-        if (mh.stats) {
-            combinedStats.add(mh.stats);
-        }
-        if (oh && oh.stats) {
-            combinedStats.add(oh.stats);
-        }
-        this.buffManager = new BuffManager(combinedStats, logCallback);
-        this.mh = new WeaponEquiped(mh, this);
-        if (oh) {
-            this.oh = new WeaponEquiped(oh, this);
-        }
+        this.buffManager = new BuffManager(new Stats(stats), logCallback);
         this.log = logCallback;
+    }
+    get mh() {
+        const equiped = this.items.get(ItemSlot.MAINHAND);
+        if (equiped && isEquipedWeapon(equiped)) {
+            return equiped;
+        }
+    }
+    get oh() {
+        const equiped = this.items.get(ItemSlot.OFFHAND);
+        if (equiped && isEquipedWeapon(equiped)) {
+            return equiped;
+        }
+    }
+    equip(item, slot) {
+        if (this.items.has(slot)) {
+            console.error(`already have item in slot ${ItemSlot[slot]}`);
+            return;
+        }
+        if (!(item.slot & slot)) {
+            console.error(`cannot equip ${item.name} in slot ${ItemSlot[slot]}`);
+            return;
+        }
+        if (item.stats) {
+            this.buffManager.baseStats.add(item.stats);
+            this.buffManager.recalculateStats();
+        }
+        if (isWeapon(item)) {
+            this.items.set(slot, new WeaponEquiped(item, this));
+        }
+        else {
+            this.items.set(slot, new ItemEquiped(item, this));
+        }
     }
     get power() {
         return 0;
     }
     set power(power) { }
+    addProc(p) {
+        this.procs.push(p);
+    }
     calculateWeaponSkillValue(is_mh, ignore_weapon_skill = false) {
         if (ignore_weapon_skill) {
             return this.maxSkillForLevel;
@@ -197,6 +224,9 @@ export class Player extends Unit {
     }
     updateProcs(time, is_mh, hitOutcome, damageDone, cleanDamage, spell) {
         if (![MeleeHitOutcome.MELEE_HIT_MISS, MeleeHitOutcome.MELEE_HIT_DODGE].includes(hitOutcome)) {
+            for (let proc of this.procs) {
+                proc.run(this, (is_mh ? this.mh : this.oh).weapon, time);
+            }
             (is_mh ? this.mh : this.oh).proc(time);
         }
     }
@@ -231,9 +261,13 @@ export class Player extends Unit {
         this.buffManager.removeExpiredBuffs(time);
         this.buffManager.recalculateStats();
         if (this.target) {
-            while (this.extraAttackCount > 0) {
-                this.swingWeapon(time, this.target, true);
-                this.extraAttackCount--;
+            if (this.extraAttackCount > 0) {
+                this.doingExtraAttacks = true;
+                while (this.extraAttackCount > 0) {
+                    this.swingWeapon(time, this.target, true);
+                    this.extraAttackCount--;
+                }
+                this.doingExtraAttacks = false;
             }
             this.chooseAction(time);
             if (time >= this.mh.nextSwingTime) {

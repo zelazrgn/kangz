@@ -1,11 +1,4 @@
 import { LearnedSpell } from "./spell.js";
-export var WeaponType;
-(function (WeaponType) {
-    WeaponType[WeaponType["MACE"] = 0] = "MACE";
-    WeaponType[WeaponType["SWORD"] = 1] = "SWORD";
-    WeaponType[WeaponType["AXE"] = 2] = "AXE";
-    WeaponType[WeaponType["DAGGER"] = 3] = "DAGGER";
-})(WeaponType || (WeaponType = {}));
 export var ItemSlot;
 (function (ItemSlot) {
     ItemSlot[ItemSlot["MAINHAND"] = 1] = "MAINHAND";
@@ -15,14 +8,24 @@ export var ItemSlot;
     ItemSlot[ItemSlot["HEAD"] = 16] = "HEAD";
     ItemSlot[ItemSlot["NECK"] = 32] = "NECK";
     ItemSlot[ItemSlot["SHOULDER"] = 64] = "SHOULDER";
-    ItemSlot[ItemSlot["CAPE"] = 128] = "CAPE";
+    ItemSlot[ItemSlot["BACK"] = 128] = "BACK";
     ItemSlot[ItemSlot["CHEST"] = 256] = "CHEST";
     ItemSlot[ItemSlot["WRIST"] = 512] = "WRIST";
     ItemSlot[ItemSlot["HANDS"] = 1024] = "HANDS";
     ItemSlot[ItemSlot["WAIST"] = 2048] = "WAIST";
     ItemSlot[ItemSlot["LEGS"] = 2048] = "LEGS";
     ItemSlot[ItemSlot["FEET"] = 4096] = "FEET";
+    ItemSlot[ItemSlot["RING1"] = 8192] = "RING1";
+    ItemSlot[ItemSlot["RING2"] = 16384] = "RING2";
+    ItemSlot[ItemSlot["RANGED"] = 32768] = "RANGED";
 })(ItemSlot || (ItemSlot = {}));
+export var WeaponType;
+(function (WeaponType) {
+    WeaponType[WeaponType["MACE"] = 0] = "MACE";
+    WeaponType[WeaponType["SWORD"] = 1] = "SWORD";
+    WeaponType[WeaponType["AXE"] = 2] = "AXE";
+    WeaponType[WeaponType["DAGGER"] = 3] = "DAGGER";
+})(WeaponType || (WeaponType = {}));
 export function isWeapon(item) {
     return "speed" in item;
 }
@@ -59,10 +62,12 @@ export class WeaponEquiped extends ItemEquiped {
     addProc(p) {
         this.procs.push(p);
     }
+    addStone() {
+    }
     proc(time) {
         for (let proc of this.procs) {
             proc.run(this.player, this.weapon, time);
         }
     }
 }
-//# sourceMappingURL=weapon.js.map
+//# sourceMappingURL=item.js.map

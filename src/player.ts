@@ -1,9 +1,9 @@
-import { Weapon, WeaponEquiped, WeaponType } from "./weapon.js";
+import { WeaponEquiped, WeaponType, ItemDescription, ItemEquiped, ItemSlot, isEquipedWeapon, isWeapon } from "./item.js";
 import { Unit } from "./unit.js";
 import { urand, clamp } from "./math.js";
 import { BuffManager } from "./buff.js";
 import { StatValues, Stats } from "./stats.js";
-import { Spell } from "./spell.js";
+import { Spell, Proc } from "./spell.js";
 
 export enum MeleeHitOutcome {
     MELEE_HIT_EVADE,
@@ -36,13 +36,14 @@ export const hitOutcomeString: HitOutComeStringMap = {
 const skillDiffToReduction = [1, 0.9926, 0.9840, 0.9742, 0.9629, 0.9500, 0.9351, 0.9180, 0.8984, 0.8759, 0.8500, 0.8203, 0.7860, 0.7469, 0.7018];
 
 export class Player extends Unit {
-    mh: WeaponEquiped;
-    oh: WeaponEquiped | undefined;
+    items: Map<ItemSlot, ItemEquiped> = new Map();
+    procs: Proc[] = [];
 
     target: Unit | undefined;
 
     nextGCDTime = 0;
     extraAttackCount = 0;
+    doingExtraAttacks = false;
 
     buffManager: BuffManager;
 
@@ -50,25 +51,51 @@ export class Player extends Unit {
 
     log?: (time: number, text: string) => void;
 
-    constructor(mh: Weapon, oh: Weapon|undefined, stats: StatValues, logCallback?: (time: number, text: string) => void) {
+    constructor(stats: StatValues, logCallback?: (time: number, text: string) => void) {
         super(60, 0); // lvl, armor
 
-        const combinedStats = new Stats(stats);
-        if (mh.stats) {
-            combinedStats.add(mh.stats);
-        }
-        if (oh && oh.stats) {
-            combinedStats.add(oh.stats);
-        }
-
-        this.buffManager = new BuffManager(combinedStats, logCallback);
-
-        this.mh = new WeaponEquiped(mh, this);
-        if (oh) {
-            this.oh = new WeaponEquiped(oh, this);
-        }
-
+        this.buffManager = new BuffManager(new Stats(stats), logCallback);
         this.log = logCallback;
+    }
+
+    get mh(): WeaponEquiped|undefined {
+        const equiped = this.items.get(ItemSlot.MAINHAND);
+
+        if (equiped && isEquipedWeapon(equiped)) {
+            return equiped;
+        }
+    }
+
+    get oh(): WeaponEquiped|undefined {
+        const equiped = this.items.get(ItemSlot.OFFHAND);
+
+        if (equiped && isEquipedWeapon(equiped)) {
+            return equiped;
+        }
+    }
+
+    equip(item: ItemDescription, slot: ItemSlot) {
+        if (this.items.has(slot)) {
+            console.error(`already have item in slot ${ItemSlot[slot]}`)
+            return;
+        }
+
+        if (!(item.slot & slot)) {
+            console.error(`cannot equip ${item.name} in slot ${ItemSlot[slot]}`)
+            return;
+        }
+
+        if (item.stats) {
+            this.buffManager.baseStats.add(item.stats);
+            this.buffManager.recalculateStats();
+        }
+
+        // TODO - handle equipping 2H (and how that disables OH)
+        if (isWeapon(item)) {
+            this.items.set(slot, new WeaponEquiped(item, this));
+        } else {
+            this.items.set(slot, new ItemEquiped(item, this));
+        }
     }
 
     get power(): number {
@@ -77,12 +104,16 @@ export class Player extends Unit {
 
     set power(power: number) {}
 
+    addProc(p: Proc) {
+        this.procs.push(p);
+    }
+
     protected calculateWeaponSkillValue(is_mh: boolean, ignore_weapon_skill = false) {
         if (ignore_weapon_skill) {
             return this.maxSkillForLevel;
         }
 
-        const weapon = is_mh ? this.mh : this.oh!;
+        const weapon = is_mh ? this.mh! : this.oh!;
         const weaponType = weapon.weapon.type;
 
         switch (weaponType) {
@@ -153,7 +184,7 @@ export class Player extends Unit {
 
     protected calculateMinMaxDamage(is_mh: boolean): [number, number] {
         // TODO - Very simple version atm
-        const weapon = is_mh ? this.mh : this.oh!;
+        const weapon = is_mh ? this.mh! : this.oh!;
 
         const ap_bonus = this.ap / 14 * weapon.weapon.speed;
 
@@ -256,8 +287,15 @@ export class Player extends Unit {
 
     updateProcs(time: number, is_mh: boolean, hitOutcome: MeleeHitOutcome, damageDone: number, cleanDamage: number, spell?: Spell) {
         if (![MeleeHitOutcome.MELEE_HIT_MISS, MeleeHitOutcome.MELEE_HIT_DODGE].includes(hitOutcome)) {
-            // TODO - what is the order of checking for procs like hoj, ironfoe and windfury
-            (is_mh ? this.mh : this.oh!).proc(time);
+            // what is the order of checking for procs like hoj, ironfoe and windfury
+            // on LH core it is hoj > ironfoe > windfury
+
+            // so do item procs first, then weapon proc, then windfury
+            for (let proc of this.procs) {
+                proc.run(this, (is_mh ? this.mh! : this.oh!).weapon, time);
+            }
+            (is_mh ? this.mh! : this.oh!).proc(time);
+            // TODO - implement windfury here, it should still add attack power even if there is already an extra attack
         }
     }
 
@@ -291,7 +329,6 @@ export class Player extends Unit {
 
         const [thisWeapon, otherWeapon] = is_mh ? [this.mh, this.oh] : [this.oh, this.mh];
 
-        // console.log('weapon speed', is_mh, thisWeapon!.weapon.speed / this.buffManager.stats.haste);
         thisWeapon!.nextSwingTime = time + thisWeapon!.weapon.speed / this.buffManager.stats.haste * 1000;
 
         if (otherWeapon && otherWeapon.nextSwingTime < time + 200) {
@@ -305,14 +342,18 @@ export class Player extends Unit {
         this.buffManager.recalculateStats();
 
         if (this.target) {
-            while (this.extraAttackCount > 0) {
-                this.swingWeapon(time, this.target, true);
-                this.extraAttackCount--;
+            if (this.extraAttackCount > 0) {
+                this.doingExtraAttacks = true;
+                while (this.extraAttackCount > 0) {
+                    this.swingWeapon(time, this.target, true);
+                    this.extraAttackCount--;
+                }
+                this.doingExtraAttacks = false;
             }
 
             this.chooseAction(time);
 
-            if (time >= this.mh.nextSwingTime) {
+            if (time >= this.mh!.nextSwingTime) {
                 this.swingWeapon(time, this.target, true);
             } else if (this.oh && time >= this.oh.nextSwingTime) {
                 this.swingWeapon(time, this.target, false);

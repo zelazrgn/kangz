@@ -30,6 +30,11 @@ export class Warrior extends Player {
         return this.level * 3 - 20 + this.buffManager.stats.ap + this.buffManager.stats.str * this.buffManager.stats.statMult * 2;
     }
 
+    calculateCritChance() {
+        // cruelty + berserker stance
+        return 5 + 3 + super.calculateCritChance();
+    }
+
     calculateRawDamage(is_mh: boolean, is_spell: boolean) { // TODO - currently is_spell is really is_heroicstrike
         const bonus = (is_mh && is_spell) ? 157 : 0; // heroic strike rank 9
         return bonus + super.calculateRawDamage(is_mh, is_spell);
@@ -86,7 +91,12 @@ export class Warrior extends Player {
         }
 
         // instant attacks and misses/dodges don't use flurry charges // TODO - confirm
-        if (!(spell || spell === heroicStrikeSpell) && ![MeleeHitOutcome.MELEE_HIT_MISS, MeleeHitOutcome.MELEE_HIT_DODGE].includes(hitOutcome)) {
+        // extra attacks don't use flurry charges but they can proc flurry (tested)
+        if (
+            !this.doingExtraAttacks
+            && !(spell || spell === heroicStrikeSpell)
+            && ![MeleeHitOutcome.MELEE_HIT_MISS, MeleeHitOutcome.MELEE_HIT_DODGE].includes(hitOutcome)
+        ) { 
             this.flurryCount = Math.max(0, this.flurryCount - 1);
         }
         
@@ -174,4 +184,4 @@ const hamstringSpell = new Spell("Hamstring", true, 10, 0, (player: Player, time
     warrior.dealMeleeDamage(time, 45, warrior.target!, true, hamstringSpell, false);
 });
 
-export const battleShout = new Buff("Battle Shout", 60 * 60, {ap: 290});
+export const battleShout = new Buff("Battle Shout", 2 * 60, {ap: 290});
