@@ -38,7 +38,8 @@ export class Player extends Unit {
         this.extraAttackCount = 0;
         this.doingExtraAttacks = false;
         this.damageDone = 0;
-        this.buffManager = new BuffManager(new Stats(stats), logCallback);
+        this.queuedSpell = undefined;
+        this.buffManager = new BuffManager(this, new Stats(stats));
         this.log = logCallback;
     }
     get mh() {
@@ -64,7 +65,6 @@ export class Player extends Unit {
         }
         if (item.stats) {
             this.buffManager.baseStats.add(item.stats);
-            this.buffManager.recalculateStats();
         }
         if (isWeapon(item)) {
             this.items.set(slot, new WeaponEquiped(item, this));
@@ -79,6 +79,11 @@ export class Player extends Unit {
     set power(power) { }
     addProc(p) {
         this.procs.push(p);
+    }
+    removeProc(p) {
+        this.procs = this.procs.filter((proc) => {
+            return proc !== p;
+        });
     }
     calculateWeaponSkillValue(is_mh, ignore_weapon_skill = false) {
         if (ignore_weapon_skill) {
@@ -152,7 +157,7 @@ export class Player extends Unit {
             Math.trunc(weapon.weapon.max + ap_bonus)
         ];
     }
-    calculateRawDamage(is_mh, is_spell) {
+    calculateRawDamage(is_mh) {
         return urand(...this.calculateMinMaxDamage(is_mh));
     }
     rollMeleeHitOutcome(victim, is_mh, is_spell, ignore_weapon_skill = false) {
@@ -232,7 +237,7 @@ export class Player extends Unit {
     }
     dealMeleeDamage(time, rawDamage, target, is_mh, spell, ignore_weapon_skill = false) {
         let [damageDone, hitOutcome, cleanDamage] = this.calculateMeleeDamage(rawDamage, target, is_mh, spell !== undefined, ignore_weapon_skill);
-        damageDone = Math.trunc(damageDone);
+        damageDone = Math.trunc(damageDone * this.buffManager.stats.damageMult);
         cleanDamage = Math.trunc(cleanDamage);
         this.damageDone += damageDone;
         if (this.log) {
@@ -243,14 +248,19 @@ export class Player extends Unit {
             this.log(time, hitStr);
         }
         this.updateProcs(time, is_mh, hitOutcome, damageDone, cleanDamage, spell);
-        this.buffManager.recalculateStats();
+        this.buffManager.update(time);
     }
-    swingWeapon(time, target, is_mh, spell) {
-        if (this.extraAttackCount && spell) {
-            throw new Error("cannot cast melee swing spell when you have extra attacks");
+    swingWeapon(time, target, is_mh) {
+        const rawDamage = this.calculateRawDamage(is_mh);
+        if (!this.doingExtraAttacks && is_mh && this.queuedSpell && this.queuedSpell.canCast(time)) {
+            const swingSpell = this.queuedSpell.spell;
+            this.queuedSpell = undefined;
+            const bonusDamage = swingSpell.bonusDamage;
+            this.dealMeleeDamage(time, rawDamage + bonusDamage, target, is_mh, swingSpell);
         }
-        const rawDamage = this.calculateRawDamage(is_mh, spell !== undefined);
-        this.dealMeleeDamage(time, rawDamage, target, is_mh, spell);
+        else {
+            this.dealMeleeDamage(time, rawDamage, target, is_mh);
+        }
         const [thisWeapon, otherWeapon] = is_mh ? [this.mh, this.oh] : [this.oh, this.mh];
         thisWeapon.nextSwingTime = time + thisWeapon.weapon.speed / this.buffManager.stats.haste * 1000;
         if (otherWeapon && otherWeapon.nextSwingTime < time + 200) {
@@ -258,8 +268,7 @@ export class Player extends Unit {
         }
     }
     update(time) {
-        this.buffManager.removeExpiredBuffs(time);
-        this.buffManager.recalculateStats();
+        this.buffManager.update(time);
         if (this.target) {
             if (this.extraAttackCount > 0) {
                 this.doingExtraAttacks = true;

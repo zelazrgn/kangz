@@ -3,7 +3,7 @@ import { Unit } from "./unit.js";
 import { urand, clamp } from "./math.js";
 import { BuffManager } from "./buff.js";
 import { StatValues, Stats } from "./stats.js";
-import { Spell, Proc } from "./spell.js";
+import { Spell, Proc, LearnedSwingSpell } from "./spell.js";
 
 export enum MeleeHitOutcome {
     MELEE_HIT_EVADE,
@@ -49,12 +49,14 @@ export class Player extends Unit {
 
     damageDone = 0;
 
+    queuedSpell: LearnedSwingSpell|undefined = undefined;
+
     log?: (time: number, text: string) => void;
 
     constructor(stats: StatValues, logCallback?: (time: number, text: string) => void) {
         super(60, 0); // lvl, armor
 
-        this.buffManager = new BuffManager(new Stats(stats), logCallback);
+        this.buffManager = new BuffManager(this, new Stats(stats));
         this.log = logCallback;
     }
 
@@ -87,7 +89,6 @@ export class Player extends Unit {
 
         if (item.stats) {
             this.buffManager.baseStats.add(item.stats);
-            this.buffManager.recalculateStats();
         }
 
         // TODO - handle equipping 2H (and how that disables OH)
@@ -106,6 +107,13 @@ export class Player extends Unit {
 
     addProc(p: Proc) {
         this.procs.push(p);
+    }
+
+    removeProc(p: Proc) {
+        // TODO - either procs should be a set or we need ProcApplication
+        this.procs = this.procs.filter((proc: Proc) => {
+            return proc !== p;
+        });
     }
 
     protected calculateWeaponSkillValue(is_mh: boolean, ignore_weapon_skill = false) {
@@ -194,7 +202,7 @@ export class Player extends Unit {
         ];
     }
 
-    protected calculateRawDamage(is_mh: boolean, is_spell: boolean) {
+    calculateRawDamage(is_mh: boolean) {
         return urand(...this.calculateMinMaxDamage(is_mh));
     }
 
@@ -301,8 +309,8 @@ export class Player extends Unit {
 
     dealMeleeDamage(time: number, rawDamage: number, target: Unit, is_mh: boolean, spell?: Spell, ignore_weapon_skill = false) {
         let [damageDone, hitOutcome, cleanDamage] = this.calculateMeleeDamage(rawDamage, target, is_mh, spell !== undefined, ignore_weapon_skill);
-        damageDone = Math.trunc(damageDone); // truncating here because warrior subclass builds on top of calculateMeleeDamage
-        cleanDamage = Math.trunc(cleanDamage);
+        damageDone = Math.trunc(damageDone * this.buffManager.stats.damageMult); // truncating here because warrior subclass builds on top of calculateMeleeDamage
+        cleanDamage = Math.trunc(cleanDamage); // TODO, should damageMult affect clean damage as well? if so move it into calculateMeleeDamage
 
         this.damageDone += damageDone;
         
@@ -315,17 +323,20 @@ export class Player extends Unit {
         }
 
         this.updateProcs(time, is_mh, hitOutcome, damageDone, cleanDamage, spell);
-        this.buffManager.recalculateStats();
+        this.buffManager.update(time);
     }
 
-    protected swingWeapon(time: number, target: Unit, is_mh: boolean, spell?: Spell) {
-        if (this.extraAttackCount && spell) {
-            throw new Error("cannot cast melee swing spell when you have extra attacks");
+    protected swingWeapon(time: number, target: Unit, is_mh: boolean) {
+        const rawDamage = this.calculateRawDamage(is_mh);
+        
+        if (!this.doingExtraAttacks && is_mh && this.queuedSpell && this.queuedSpell.canCast(time)) {
+            const swingSpell = this.queuedSpell.spell;
+            this.queuedSpell = undefined;
+            const bonusDamage = swingSpell.bonusDamage;
+            this.dealMeleeDamage(time, rawDamage + bonusDamage, target, is_mh, swingSpell);
+        } else {
+            this.dealMeleeDamage(time, rawDamage, target, is_mh);
         }
-
-        const rawDamage = this.calculateRawDamage(is_mh, spell !== undefined);
-
-        this.dealMeleeDamage(time, rawDamage, target, is_mh, spell);
 
         const [thisWeapon, otherWeapon] = is_mh ? [this.mh, this.oh] : [this.oh, this.mh];
 
@@ -338,8 +349,7 @@ export class Player extends Unit {
     }
 
     update(time: number) {
-        this.buffManager.removeExpiredBuffs(time);
-        this.buffManager.recalculateStats();
+        this.buffManager.update(time);
 
         if (this.target) {
             if (this.extraAttackCount > 0) {

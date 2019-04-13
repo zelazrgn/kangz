@@ -1,19 +1,21 @@
 import { Player, MeleeHitOutcome } from "./player.js";
-import { Buff } from "./buff.js";
-import { Spell, LearnedSpell } from "./spell.js";
+import { Buff, BuffOverTime } from "./buff.js";
+import { Spell, LearnedSpell, SpellDamage, SpellType, SwingSpell, LearnedSwingSpell } from "./spell.js";
 import { clamp } from "./math.js";
-const flurry = new Buff("Flurry", 15, { haste: 1.3 });
+import { ItemSlot } from "./item.js";
+const flurry = new Buff("Flurry", 15, { haste: 1.3 }, true, 3, undefined, undefined, false);
 export class Warrior extends Player {
-    constructor() {
-        super(...arguments);
+    constructor(stats, logCallback) {
+        super(stats, logCallback);
         this.flurryCount = 0;
         this.rage = 0;
         this.execute = new LearnedSpell(executeSpell, this);
         this.bloodthirst = new LearnedSpell(bloodthirstSpell, this);
-        this.heroicStrike = new LearnedSpell(heroicStrikeSpell, this);
         this.hamstring = new LearnedSpell(hamstringSpell, this);
         this.whirlwind = new LearnedSpell(whirlwindSpell, this);
-        this.queuedSpell = undefined;
+        this.heroicStrike = new LearnedSwingSpell(heroicStrikeSpell, this);
+        this.bloodRage = new LearnedSpell(bloodRage, this);
+        this.buffManager.add(angerManagementOT, Math.random() * -3000);
     }
     get power() {
         return this.rage;
@@ -26,10 +28,6 @@ export class Warrior extends Player {
     }
     calculateCritChance() {
         return 5 + 3 + super.calculateCritChance();
-    }
-    calculateRawDamage(is_mh, is_spell) {
-        const bonus = (is_mh && is_spell) ? 157 : 0;
-        return bonus + super.calculateRawDamage(is_mh, is_spell);
     }
     calculateMeleeDamage(rawDamage, victim, is_mh, is_spell, ignore_weapon_skill = false) {
         let [damageDone, hitOutcome, cleanDamage] = super.calculateMeleeDamage(rawDamage, victim, is_mh, is_spell, ignore_weapon_skill);
@@ -66,45 +64,32 @@ export class Warrior extends Player {
         }
         if (!this.doingExtraAttacks
             && !(spell || spell === heroicStrikeSpell)
-            && ![MeleeHitOutcome.MELEE_HIT_MISS, MeleeHitOutcome.MELEE_HIT_DODGE].includes(hitOutcome)) {
+            && ![MeleeHitOutcome.MELEE_HIT_MISS, MeleeHitOutcome.MELEE_HIT_DODGE].includes(hitOutcome)
+            && hitOutcome !== MeleeHitOutcome.MELEE_HIT_CRIT) {
             this.flurryCount = Math.max(0, this.flurryCount - 1);
         }
         if (hitOutcome === MeleeHitOutcome.MELEE_HIT_CRIT) {
-            this.flurryCount = 3;
             this.buffManager.add(flurry, time);
         }
-        else if (this.flurryCount === 0) {
-            this.buffManager.remove(flurry, time);
-        }
     }
-    swingWeapon(time, target, is_mh, spell) {
-        if (this.queuedSpell && this.extraAttackCount) {
-            if (this.log)
-                this.log(time, `canceled Heroic Strike due to extra attack`);
-            this.queuedSpell = undefined;
-        }
-        if (!spell && this.queuedSpell && is_mh) {
-            if (this.queuedSpell.canCast(time)) {
-                const spell = this.queuedSpell;
-                this.queuedSpell = undefined;
-                spell.cast(time);
-                return;
-            }
-            else {
-                if (this.log)
-                    this.log(time, `canceled Heroic Strike, don't have enough rage (${this.rage})`);
-                this.queuedSpell = undefined;
-                super.swingWeapon(time, target, is_mh);
-            }
-        }
-        else {
-            super.swingWeapon(time, target, is_mh, spell);
-        }
+    swingWeapon(time, target, is_mh) {
+        super.swingWeapon(time, target, is_mh);
         if (!this.extraAttackCount) {
             this.chooseAction(time);
         }
     }
     chooseAction(time) {
+        const useItemIfCan = (slot) => {
+            const item = this.items.get(slot);
+            if (item && item.onuse && item.onuse.canCast(time)) {
+                item.onuse.cast(time);
+            }
+        };
+        useItemIfCan(ItemSlot.TRINKET1);
+        useItemIfCan(ItemSlot.TRINKET2);
+        if (this.rage < 30 && this.bloodRage.canCast(time)) {
+            this.bloodRage.cast(time);
+        }
         if (this.nextGCDTime <= time) {
             if (this.bloodthirst.canCast(time)) {
                 this.bloodthirst.cast(time);
@@ -129,25 +114,32 @@ export class Warrior extends Player {
         }
     }
 }
-const heroicStrikeSpell = new Spell("Heroic Strike", false, 12, 0, (player, time) => {
-    const warrior = player;
-    warrior.swingWeapon(time, warrior.target, true, heroicStrikeSpell);
-});
-const executeSpell = new Spell("Execute", true, 10, 0, (player) => {
-    const warrior = player;
-});
-const bloodthirstSpell = new Spell("Bloodthirst", true, 30, 6000, (player, time) => {
-    const warrior = player;
-    const rawDamage = warrior.ap * 0.45;
-    warrior.dealMeleeDamage(time, rawDamage, warrior.target, true, bloodthirstSpell, true);
-});
-const whirlwindSpell = new Spell("Whirlwind", true, 25, 10000, (player, time) => {
-    const warrior = player;
-    warrior.dealMeleeDamage(time, warrior.calculateRawDamage(true, false), warrior.target, true, whirlwindSpell, false);
-});
-const hamstringSpell = new Spell("Hamstring", true, 10, 0, (player, time) => {
-    const warrior = player;
-    warrior.dealMeleeDamage(time, 45, warrior.target, true, hamstringSpell, false);
-});
+const heroicStrikeSpell = new SwingSpell("Heroic Strike", 157, 12);
+const executeSpell = new SpellDamage("Execute", (player) => {
+    return 450 + (player.rage - 10);
+}, SpellType.PHYSICAL_WEAPON, true, 10, 0);
+const bloodthirstSpell = new SpellDamage("Bloodthirst", (player) => {
+    return player.ap * 0.45;
+}, SpellType.PHYSICAL, true, 30, 6000);
+const whirlwindSpell = new SpellDamage("Whirlwind", (player) => {
+    return player.calculateRawDamage(true);
+}, SpellType.PHYSICAL_WEAPON, true, 25, 10000);
+const hamstringSpell = new SpellDamage("Hamstring", 45, SpellType.PHYSICAL_WEAPON, true, 10, 0);
 export const battleShout = new Buff("Battle Shout", 2 * 60, { ap: 290 });
+export const angerManagementOT = new BuffOverTime("Anger Management", Number.MAX_SAFE_INTEGER, undefined, 3000, (player, time) => {
+    player.power += 1;
+    if (player.log)
+        player.log(time, `You gained 1 rage from Anger Management`);
+});
+const bloodRageOT = new BuffOverTime("Bloodrage", 10, undefined, 1000, (player, time) => {
+    player.power += 1;
+    if (player.log)
+        player.log(time, `You gained 1 rage from Bloodrage`);
+});
+const bloodRage = new Spell("Bloodrage", false, 0, 60 * 1000, (player, time) => {
+    player.power += 10;
+    if (player.log)
+        player.log(time, `You gain 10 rage from Bloodrage`);
+    player.buffManager.add(bloodRageOT, time);
+});
 //# sourceMappingURL=warrior.js.map

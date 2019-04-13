@@ -44,6 +44,40 @@ export class LearnedSpell {
         return true;
     }
 }
+export class SwingSpell extends Spell {
+    constructor(name, bonusDamage, cost) {
+        super(name, false, cost, 0, () => { });
+        this.bonusDamage = bonusDamage;
+    }
+}
+export class LearnedSwingSpell extends LearnedSpell {
+    constructor(spell, caster) {
+        super(spell, caster);
+        this.spell = spell;
+    }
+}
+export var SpellType;
+(function (SpellType) {
+    SpellType[SpellType["PHYSICAL"] = 0] = "PHYSICAL";
+    SpellType[SpellType["PHYSICAL_WEAPON"] = 1] = "PHYSICAL_WEAPON";
+})(SpellType || (SpellType = {}));
+export class SpellDamage extends Spell {
+    constructor(name, amount, type, is_gcd, cost, cooldown) {
+        super(name, is_gcd, cost, cooldown, (player, time) => {
+            const dmg = (typeof amount === "number") ? amount : amount(player);
+            if (type === SpellType.PHYSICAL || type === SpellType.PHYSICAL_WEAPON) {
+                const ignore_weapon_skill = type === SpellType.PHYSICAL;
+                player.dealMeleeDamage(time, dmg, player.target, true, this, ignore_weapon_skill);
+            }
+        });
+    }
+}
+export class SpellDamage2 extends SpellDamage {
+    constructor(name, amount, type) {
+        super(name, amount, type, false, 0, 0);
+    }
+}
+const fatalWounds = new SpellDamage2("Fatal Wounds", 240, SpellType.PHYSICAL);
 export class ExtraAttack extends Spell {
     constructor(name, count) {
         super(name, false, 0, 0, (player, time) => {
@@ -57,8 +91,8 @@ export class ExtraAttack extends Spell {
     }
 }
 export class SpellBuff extends Spell {
-    constructor(buff) {
-        super(`SpellBuff(${buff.name})`, false, 0, 0, (player, time) => {
+    constructor(buff, cooldown) {
+        super(`SpellBuff(${buff.name})`, false, 0, cooldown || 0, (player, time) => {
             player.buffManager.add(buff, time);
         });
     }

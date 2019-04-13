@@ -10,6 +10,7 @@ export class Stats {
         this.crit = (s && s.crit) || 0;
         this.haste = (s && s.haste) || 1;
         this.statMult = (s && s.statMult) || 1;
+        this.damageMult = (s && s.damageMult) || 1;
         this.armorPenetration = (s && s.armorPenetration) || 0;
         this.swordSkill = (s && s.swordSkill) || 0;
         this.axeSkill = (s && s.axeSkill) || 0;
@@ -24,6 +25,7 @@ export class Stats {
         this.crit += (s.crit || 0);
         this.haste *= (s.haste || 1);
         this.statMult *= (s.statMult || 1);
+        this.damageMult *= (s.damageMult || 1);
         this.armorPenetration += (s.armorPenetration || 0);
         this.swordSkill += (s.swordSkill || 0);
         this.axeSkill += (s.axeSkill || 0);

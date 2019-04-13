@@ -81,6 +81,11 @@ for (let [slot, categoryEl] of categoryEls) {
     itemsEl.appendChild(categoryEl);
 }
 
+// default items
+categoryEls.get(ItemSlot.MAINHAND)!.value = "9"; // Empyrean
+categoryEls.get(ItemSlot.RING2)!.value = "16"; // QSR
+categoryEls.get(ItemSlot.TRINKET2)!.value = "11"; // HOJ
+
 function log(time: number, str: string) {
     const newEl = document.createElement("div");
 
@@ -117,6 +122,8 @@ class RealTimeSim {
 
     protected paused = false;
 
+    protected printDPSInterval: number;
+
     constructor(fast = false) {
         this.fast = fast;
         
@@ -152,6 +159,7 @@ class RealTimeSim {
         const boss = new Unit(63, 200);
         me.target = boss;
 
+        me.buffManager.update(0);
         myStatsEl.textContent = `
             AP: ${me.ap.toFixed(2)}
             Crit: ${me.calculateCritChance().toFixed(2)}
@@ -159,7 +167,7 @@ class RealTimeSim {
             Str: ${(me.buffManager.stats.str * me.buffManager.stats.statMult).toFixed(2)}
             Agi: ${(me.buffManager.stats.agi * me.buffManager.stats.statMult).toFixed(2)}`;
 
-        const printDPS = setInterval(() => {
+        this.printDPSInterval = setInterval(() => {
             const dps = me.damageDone / this.duration * 1000;
             dpsEl.textContent = `Time: ${(this.duration / 1000).toFixed(3)} DPS: ${dps.toFixed(1)}`;
 
@@ -170,7 +178,6 @@ class RealTimeSim {
 
         this.update = () => {
             if (this.requestStop) {
-                clearInterval(printDPS);
                 return;
             }
 
@@ -180,9 +187,9 @@ class RealTimeSim {
                     if (me.extraAttackCount) {
                         // don't increment duration (but I really should because the server doesn't loop instantly)
                     } else if (me.nextGCDTime > this.duration) {
-                        this.duration = Math.min(me.nextGCDTime, me.mh!.nextSwingTime, me.oh!.nextSwingTime);
+                        this.duration = Math.min(me.nextGCDTime, me.mh!.nextSwingTime, me.oh!.nextSwingTime, me.buffManager.nextOverTimeUpdate);
                     } else {
-                        this.duration = Math.min(me.mh!.nextSwingTime, me.oh!.nextSwingTime);
+                        this.duration = Math.min(me.mh!.nextSwingTime, me.oh!.nextSwingTime, me.buffManager.nextOverTimeUpdate);
                     }
                 } else {
                     this.duration += 1000 / 60;
@@ -206,6 +213,7 @@ class RealTimeSim {
     }
 
     stop() {
+        clearInterval(this.printDPSInterval);
         this.requestStop = true;
     }
 }

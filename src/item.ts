@@ -64,7 +64,7 @@ export class ItemEquiped {
             this.onuse = new LearnedSpell(item.onuse, player);
         }
 
-        if (item.onequip) {
+        if (item.onequip) { // TODO, move this to buffproc? this may be simpler though since we know the buff won't be removed
             player.addProc(item.onequip);
         }
     }

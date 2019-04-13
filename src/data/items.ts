@@ -1,6 +1,6 @@
 import { WeaponType, WeaponDescription, ItemSlot, ItemDescription } from "../item.js";
-import { SpellBuff, ExtraAttack, Proc } from "../spell.js";
-import { Buff } from "../buff.js";
+import { SpellBuff, ExtraAttack, Proc, Spell } from "../spell.js";
+import { Buff, BuffProc } from "../buff.js";
 
 export const items: (ItemDescription|WeaponDescription)[] = [
     {
@@ -19,7 +19,7 @@ export const items: (ItemDescription|WeaponDescription)[] = [
         min: 94,
         max: 175,
         speed: 2.8,
-        onhit: new Proc(new SpellBuff(new Buff("Empyrean Demolisher", 10, {haste: 1.2})),{ppm: 1})
+        onhit: new Proc(new SpellBuff(new Buff("Haste (Empyrean Demolisher)", 10, {haste: 1.2})),{ppm: 1})
     },
     {
         name: "Anubisath Warhammer",
@@ -115,4 +115,18 @@ export const items: (ItemDescription|WeaponDescription)[] = [
         speed: 2.9,
         stats: { crit: 1, ap: 28 }
     },
+    {
+        name: "Badge of the Swarmguard",
+        slot: ItemSlot.TRINKET1 | ItemSlot.TRINKET2,
+        onuse: (() => {
+            const insightOfTheQiraji = new Buff("Insight of the Qiraji", 30, {armorPenetration: 200}, true, 0, 6);
+            const badgeBuff = new SpellBuff(
+                new BuffProc("Badge of the Swarmguard", 30,
+                    new Proc(new SpellBuff(insightOfTheQiraji), {ppm: 15}),
+                    insightOfTheQiraji),
+                3 * 60 * 1000);
+            
+            return badgeBuff;
+        })()
+    }
 ];

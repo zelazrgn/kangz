@@ -6,6 +6,7 @@ export interface StatValues {
     crit?: number;
     haste?: number;
     statMult?: number;
+    damageMult?: number;
     armorPenetration?: number;
 
     swordSkill?: number;
@@ -14,7 +15,7 @@ export interface StatValues {
     daggerSkill?: number;
 }
 
-export class Stats {
+export class Stats implements StatValues {
     ap!: number;
     str!: number;
     agi!: number;
@@ -22,6 +23,7 @@ export class Stats {
     crit!: number;
     haste!: number;
     statMult!: number;
+    damageMult!: number;
     armorPenetration!: number;
 
     swordSkill!: number;
@@ -41,6 +43,7 @@ export class Stats {
         this.crit = (s && s.crit) || 0;
         this.haste = (s && s.haste) || 1;
         this.statMult = (s && s.statMult) || 1;
+        this.damageMult = (s && s.damageMult) || 1;
         this.armorPenetration = (s && s.armorPenetration) || 0;
 
         this.swordSkill = (s && s.swordSkill) || 0;
@@ -57,6 +60,7 @@ export class Stats {
         this.crit += (s.crit || 0);
         this.haste *= (s.haste || 1);
         this.statMult *= (s.statMult || 1);
+        this.damageMult *= (s.damageMult || 1);
         this.armorPenetration += (s.armorPenetration || 0);
 
         this.swordSkill += (s.swordSkill || 0);

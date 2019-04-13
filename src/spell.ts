@@ -71,6 +71,51 @@ export class LearnedSpell {
     }
 }
 
+export class SwingSpell extends Spell {
+    bonusDamage: number;
+
+    constructor(name: string, bonusDamage: number, cost: number) {
+        super(name, false, cost, 0, () => {});
+        this.bonusDamage = bonusDamage;
+    }
+}
+
+export class LearnedSwingSpell extends LearnedSpell {
+    spell: SwingSpell;
+    
+    constructor(spell: SwingSpell, caster: Player) {
+        super(spell, caster);
+        this.spell = spell; // TODO - is there a way to avoid this line?
+    }
+}
+
+export enum SpellType {
+    PHYSICAL,
+    PHYSICAL_WEAPON
+}
+
+export class SpellDamage extends Spell {
+    constructor(name: string, amount: number|((player: Player) => number), type: SpellType, is_gcd: boolean, cost: number, cooldown: number) {
+        super(name, is_gcd, cost, cooldown, (player: Player, time: number) => {
+            const dmg = (typeof amount === "number") ? amount : amount(player);
+            
+            if (type === SpellType.PHYSICAL || type === SpellType.PHYSICAL_WEAPON) {
+                // TODO - do procs like fatal wounds (vis'kag) account for weapon skill?
+                const ignore_weapon_skill = type === SpellType.PHYSICAL;
+                player.dealMeleeDamage(time, dmg, player.target!, true, this, ignore_weapon_skill);
+            }
+        });
+    }
+}
+
+export class SpellDamage2 extends SpellDamage {
+    constructor(name: string, amount: number, type: SpellType) {
+        super(name, amount, type, false, 0, 0);
+    }
+}
+
+const fatalWounds = new SpellDamage2("Fatal Wounds", 240, SpellType.PHYSICAL);
+
 export class ExtraAttack extends Spell {
     constructor(name: string, count: number) {
         super(name, false, 0, 0, (player: Player, time: number) => {
@@ -84,8 +129,8 @@ export class ExtraAttack extends Spell {
 }
 
 export class SpellBuff extends Spell {
-    constructor(buff: Buff) {
-        super(`SpellBuff(${buff.name})`, false, 0, 0, (player: Player, time: number) => {
+    constructor(buff: Buff, cooldown?: number) {
+        super(`SpellBuff(${buff.name})`, false, 0, cooldown || 0, (player: Player, time: number) => {
             player.buffManager.add(buff, time);
         });
     }
