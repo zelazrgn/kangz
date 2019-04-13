@@ -197,7 +197,9 @@ class RealTimeSim {
 
                 me.update(this.duration);
 
-                rageEl.textContent = `Rage: ${me.rage}`;
+                if (!disableLogEl.checked) {
+                    rageEl.textContent = `Rage: ${me.rage}`;
+                }
             }
 
             requestAnimationFrame(this.update);
@@ -225,6 +227,7 @@ document.getElementById('restartBtn')!.addEventListener('click', () => {
     currentSim.stop();
     logEl.innerHTML = "";
     dpsEl.innerHTML = "";
+    rageEl.innerHTML = "";
     currentSim = new RealTimeSim(fastModeEl.checked);
     currentSim.start();
 });
