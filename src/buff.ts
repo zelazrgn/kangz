@@ -57,7 +57,12 @@ export class BuffManager {
             if (buffApp.buff === buff) {
                 if (buff.stacks) {            
                     const logStackIncrease = this.player.log && (!buff.maxStacks || buffApp.stacks < buff.maxStacks);
-                    buffApp.stacks = buff.initialStacks || buffApp.stacks + 1;
+
+                    if (buff.initialStacks) { // TODO - change this to charges?
+                        buffApp.refresh(applyTime);
+                    } else {
+                        buffApp.stacks++;
+                    }
 
                     if (logStackIncrease) {
                         this.player.log!(applyTime, `${buff.name} refreshed (${buffApp.stacks})`);
