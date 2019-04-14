@@ -2,7 +2,6 @@ import { Player, MeleeHitOutcome } from "./player.js";
 import { Buff, BuffOverTime } from "./buff.js";
 import { Spell, LearnedSpell, SpellDamage, SpellType, SwingSpell, LearnedSwingSpell } from "./spell.js";
 import { clamp } from "./math.js";
-import { ItemSlot } from "./item.js";
 const flurry = new Buff("Flurry", 15, { haste: 1.3 }, true, 3, undefined, undefined, false);
 export class Warrior extends Player {
     constructor(stats, logCallback) {
@@ -72,47 +71,6 @@ export class Warrior extends Player {
             this.buffManager.add(flurry, time);
         }
     }
-    swingWeapon(time, target, is_mh) {
-        super.swingWeapon(time, target, is_mh);
-        if (!this.extraAttackCount) {
-            this.chooseAction(time);
-        }
-    }
-    chooseAction(time) {
-        const useItemIfCan = (slot) => {
-            const item = this.items.get(slot);
-            if (item && item.onuse && item.onuse.canCast(time)) {
-                item.onuse.cast(time);
-            }
-        };
-        useItemIfCan(ItemSlot.TRINKET1);
-        useItemIfCan(ItemSlot.TRINKET2);
-        if (this.rage < 30 && this.bloodRage.canCast(time)) {
-            this.bloodRage.cast(time);
-        }
-        if (this.nextGCDTime <= time) {
-            if (this.bloodthirst.canCast(time)) {
-                this.bloodthirst.cast(time);
-            }
-            else if (!this.bloodthirst.onCooldown(time)) {
-                return;
-            }
-            else if (this.whirlwind.canCast(time)) {
-                this.whirlwind.cast(time);
-            }
-            else if (!this.whirlwind.onCooldown(time)) {
-                return;
-            }
-            else if (this.hamstring.canCast(time)) {
-                this.hamstring.cast(time);
-            }
-        }
-        if (this.rage >= 60 && !this.queuedSpell) {
-            this.queuedSpell = this.heroicStrike;
-            if (this.log)
-                this.log(time, 'queueing heroic strike');
-        }
-    }
 }
 const heroicStrikeSpell = new SwingSpell("Heroic Strike", 157, 12);
 const executeSpell = new SpellDamage("Execute", (player) => {
@@ -125,7 +83,6 @@ const whirlwindSpell = new SpellDamage("Whirlwind", (player) => {
     return player.calculateRawDamage(true);
 }, SpellType.PHYSICAL_WEAPON, true, 25, 10000);
 const hamstringSpell = new SpellDamage("Hamstring", 45, SpellType.PHYSICAL_WEAPON, true, 10, 0);
-export const battleShout = new Buff("Battle Shout", 2 * 60, { ap: 290 });
 export const angerManagementOT = new BuffOverTime("Anger Management", Number.MAX_SAFE_INTEGER, undefined, 3000, (player, time) => {
     player.power += 1;
     if (player.log)

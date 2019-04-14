@@ -2,6 +2,8 @@ import { WeaponType, WeaponDescription, ItemSlot, ItemDescription } from "../ite
 import { SpellBuff, ExtraAttack, Proc, Spell } from "../spell.js";
 import { Buff, BuffProc } from "../buff.js";
 
+// TODO - how to implement set bonuses? probably easiest to add bonus that requires a string search of other equiped items
+
 export const items: (ItemDescription|WeaponDescription)[] = [
     {
         name: "Ironfoe",
@@ -129,4 +131,6 @@ export const items: (ItemDescription|WeaponDescription)[] = [
             return badgeBuff;
         })()
     }
-];
+].sort((a, b) => {
+    return a.name.localeCompare(b.name);
+});

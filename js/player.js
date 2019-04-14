@@ -30,7 +30,7 @@ export const hitOutcomeString = {
 };
 const skillDiffToReduction = [1, 0.9926, 0.9840, 0.9742, 0.9629, 0.9500, 0.9351, 0.9180, 0.8984, 0.8759, 0.8500, 0.8203, 0.7860, 0.7469, 0.7018];
 export class Player extends Unit {
-    constructor(stats, logCallback) {
+    constructor(stats, log) {
         super(60, 0);
         this.items = new Map();
         this.procs = [];
@@ -40,7 +40,7 @@ export class Player extends Unit {
         this.damageDone = 0;
         this.queuedSpell = undefined;
         this.buffManager = new BuffManager(this, new Stats(stats));
-        this.log = logCallback;
+        this.log = log;
     }
     get mh() {
         const equiped = this.items.get(ItemSlot.MAINHAND);
@@ -267,8 +267,7 @@ export class Player extends Unit {
             otherWeapon.nextSwingTime = time + 200;
         }
     }
-    update(time) {
-        this.buffManager.update(time);
+    updateAttackingState(time) {
         if (this.target) {
             if (this.extraAttackCount > 0) {
                 this.doingExtraAttacks = true;
@@ -278,7 +277,6 @@ export class Player extends Unit {
                 }
                 this.doingExtraAttacks = false;
             }
-            this.chooseAction(time);
             if (time >= this.mh.nextSwingTime) {
                 this.swingWeapon(time, this.target, true);
             }
@@ -287,6 +285,5 @@ export class Player extends Unit {
             }
         }
     }
-    chooseAction(time) { }
 }
 //# sourceMappingURL=player.js.map

@@ -1,7 +1,14 @@
 import { Buff } from "../buff.js";
 import { SpellBuff, Proc } from "../spell.js";
 import { Stats } from "../stats.js";
-const buffData = [
+export const buffs = [
+    {
+        name: "Battle Shout",
+        duration: 2 * 60,
+        stats: {
+            ap: 290
+        }
+    },
     {
         name: "Blessing of Kings",
         duration: 15 * 60,
@@ -40,21 +47,72 @@ const buffData = [
             statMult: 1.15
         }
     },
-];
-export const blessingOfKings = new Buff("Blessing of Kings", 15 * 60, { statMult: 1.1 });
-export const blessingOfMight = new Buff("Blessing of Might", 15 * 60, { ap: 222 });
-export const dragonslayer = new Buff("Rallying Cry of the Dragonslayer", 2 * 60 * 60, { ap: 140, crit: 5 });
-export const songflower = new Buff("Songflower Seranade", 1 * 60 * 60, { crit: 5, str: 15, agi: 15 });
-export const zandalar = new Buff("Spirit of Zandalar", 2 * 60 * 60, { statMult: 1.15 });
-export const warchiefs = new Buff("Warchief's Blessing", 1 * 60 * 60, { haste: 1.15 });
-export const dumplings = new Buff("Smoked Desert Dumplings", 15 * 60, { str: 20 });
-export const jujuPower = new Buff("Juju Power", 30 * 60, { str: 30 });
-export const jujuMight = new Buff("Juju Might", 30 * 60, { ap: 40 });
-export const mongoose = new Buff("Elixir of the Mongoose", 1 * 60 * 60, { agi: 25, crit: 2 });
-export const roids = new Buff("R.O.I.D.S.", 1 * 60 * 60, { str: 25 });
-export const fengusFerocity = new Buff("Fengus' Ferocity", 2 * 60 * 60, { ap: 200 });
-export const motw = new Buff("Gift of the Wild", 1 * 60 * 60, { str: 16, agi: 16 });
-export const trueshot = new Buff("Trueshot Aura", 1 * 60 * 60, { ap: 100 });
+    {
+        name: "Warchief's Blessing",
+        duration: 1 * 60 * 60,
+        stats: {
+            haste: 1.15
+        }
+    },
+    {
+        name: "Smoked Desert Dumplings",
+        duration: 15 * 60,
+        stats: {
+            str: 20
+        }
+    },
+    {
+        name: "Juju Power",
+        duration: 30 * 60,
+        stats: {
+            str: 30
+        }
+    },
+    {
+        name: "Juju Might",
+        duration: 10 * 60,
+        stats: {
+            ap: 40
+        }
+    },
+    {
+        name: "Elixir of the Mongoose",
+        duration: 1 * 60 * 60,
+        stats: {
+            agi: 25,
+            crit: 2
+        }
+    },
+    {
+        name: "R.O.I.D.S.",
+        duration: 1 * 60 * 60,
+        stats: {
+            str: 25
+        }
+    },
+    {
+        name: "Fengus' Ferocity",
+        duration: 2 * 60 * 60,
+        stats: {
+            ap: 200
+        }
+    },
+    {
+        name: "Gift of the Wild",
+        duration: 1 * 60 * 60,
+        stats: {
+            str: 16,
+            agi: 16
+        }
+    },
+    {
+        name: "Trueshot Aura",
+        duration: 1 * 60 * 60,
+        stats: {
+            ap: 100
+        }
+    },
+].map((bd) => new Buff(bd.name, bd.duration, bd.stats));
 export const crusaderBuffMHProc = new Proc(new SpellBuff(new Buff("Crusader MH", 15, new Stats({ str: 100 }))), { ppm: 1 });
 export const crusaderBuffOHProc = new Proc(new SpellBuff(new Buff("Crusader OH", 15, new Stats({ str: 100 }))), { ppm: 1 });
 //# sourceMappingURL=spells.js.map

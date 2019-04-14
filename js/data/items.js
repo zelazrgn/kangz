@@ -123,5 +123,7 @@ export const items = [
             return badgeBuff;
         })()
     }
-];
+].sort((a, b) => {
+    return a.name.localeCompare(b.name);
+});
 //# sourceMappingURL=items.js.map

@@ -3,34 +3,31 @@
             <link rel="stylesheet" type="text/css" href="style.css">
     </head>
     <body>
-        <div id="stats">
-            <label for="ap">Raw AP</label>
-            <input type="number" id="ap" name="ap" min="0" value="0">
-            <label for="str">Str</label>
-            <input type="number" id="str" name="str" min="0" value="0">
-            <label for="agi">Agi</label>
-            <input type="number" id="agi" name="agi" min="0" value="0">
-            <label for="hit">Hit</label>
-            <input type="number" id="hit" name="hit" min="0" value="0">
-            <label for="crit">Crit</label>
-            <input type="number" id="crit" name="crit" min="0" value="0">
+        <div id="selectOptionsContainer">
+            <div id="stats">
+                <label for="ap">Raw AP</label>
+                <input type="number" id="ap" name="ap" min="0" value="0">
+                <label for="str">Str</label>
+                <input type="number" id="str" name="str" min="0" value="0">
+                <label for="agi">Agi</label>
+                <input type="number" id="agi" name="agi" min="0" value="0">
+                <label for="hit">Hit</label>
+                <input type="number" id="hit" name="hit" min="0" value="0">
+                <label for="crit">Crit</label>
+                <input type="number" id="crit" name="crit" min="0" value="0">
+            </div>
+            <div id="items">
+                <label for="race">Race</label>
+                <select id="race" name="race">
+                    <option value="0">Human</option>
+                </select>
+            </div>
+            <div id="myStats"></div>
+            <input type="checkbox" id="realtime" name="realtime" checked>
+            <label for="realtime">Real-time</label>
+            <button id="startBtn" type="button">Start</button>
         </div>
-        <div id="items">
-            <label for="race">Race</label>
-            <select id="race" name="race">
-                <option value="0">Human</option>
-            </select>
-        </div>
-        <input type="checkbox" id="fastMode" name="fastMode">
-        <label for="fastMode">Fast</label>
-        <input type="checkbox" id="disableLog" name="disableLog">
-        <label for="disableLog">Disable Log</label>
-        <button id="restartBtn" type="button">Restart</button>
-        <button id="pauseBtn" type="button">Pause</button>
-        <div id="myStats"></div>
-        <div id="logContainer"></div>
-        <div id="rageContainer"></div>
-        <div id="dpsContainer"></div>
+        <div id="simsContainer"></div>
     </body>
     <script type="module" src="./js/main.js"></script>
 </html>

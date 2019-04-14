@@ -35,6 +35,8 @@ export const hitOutcomeString: HitOutComeStringMap = {
 
 const skillDiffToReduction = [1, 0.9926, 0.9840, 0.9742, 0.9629, 0.9500, 0.9351, 0.9180, 0.8984, 0.8759, 0.8500, 0.8203, 0.7860, 0.7469, 0.7018];
 
+export type LogFunction = (time: number, text: string) => void;
+
 export class Player extends Unit {
     items: Map<ItemSlot, ItemEquiped> = new Map();
     procs: Proc[] = [];
@@ -51,13 +53,13 @@ export class Player extends Unit {
 
     queuedSpell: LearnedSwingSpell|undefined = undefined;
 
-    log?: (time: number, text: string) => void;
+    log?: LogFunction;
 
-    constructor(stats: StatValues, logCallback?: (time: number, text: string) => void) {
+    constructor(stats: StatValues, log?: LogFunction) {
         super(60, 0); // lvl, armor
 
         this.buffManager = new BuffManager(this, new Stats(stats));
-        this.log = logCallback;
+        this.log = log;
     }
 
     get mh(): WeaponEquiped|undefined {
@@ -148,7 +150,7 @@ export class Player extends Unit {
         }
     }
 
-    protected calculateCritChance() {
+    calculateCritChance() {
         let crit = this.buffManager.stats.crit;
         crit += this.buffManager.stats.agi * this.buffManager.stats.statMult / 20;
 
@@ -186,7 +188,7 @@ export class Player extends Unit {
         }
     }
 
-    protected get ap() {
+    get ap() {
         return 0;
     }
 
@@ -348,9 +350,7 @@ export class Player extends Unit {
         }
     }
 
-    update(time: number) {
-        this.buffManager.update(time);
-
+    updateAttackingState(time: number) {
         if (this.target) {
             if (this.extraAttackCount > 0) {
                 this.doingExtraAttacks = true;
@@ -361,8 +361,6 @@ export class Player extends Unit {
                 this.doingExtraAttacks = false;
             }
 
-            this.chooseAction(time);
-
             if (time >= this.mh!.nextSwingTime) {
                 this.swingWeapon(time, this.target, true);
             } else if (this.oh && time >= this.oh.nextSwingTime) {
@@ -370,6 +368,4 @@ export class Player extends Unit {
             }
         }
     }
-
-    chooseAction(time: number) {}
 }
