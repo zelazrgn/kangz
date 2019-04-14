@@ -35,12 +35,13 @@ body {
     font-size: 11px;
     height: 250px;
     overflow-y: scroll;
-    border-bottom: 1px solid black;
 }
 
 #simsContainer {
     display: grid;
     grid-row-gap: 10px;
+    grid-column-gap: 10px;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
     align-self: start;
 }
 

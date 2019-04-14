@@ -166,6 +166,10 @@ function startSim() {
         simEl.remove();
     });
 
+    const dpsEl = document.createElement('div');
+    dpsEl.classList.add('dps');
+    simEl.append(dpsEl);
+
     const itemsEl = document.createElement('div');
     itemsEl.classList.add('equipedItems');
     itemsEl.textContent = 'Items: ' + equipmentIndicesToItem(getEquipmentIndices()).map(([item, slot]) => item.name).join(', ');
@@ -182,10 +186,6 @@ function startSim() {
     if (realtime) {
         simEl.append(logEl);   
     }
-
-    const dpsEl = document.createElement('div');
-    dpsEl.classList.add('dps');
-    simEl.append(dpsEl);
 
     simsContainerEl.append(simEl);
 
