@@ -32,7 +32,7 @@ export class WorkerInterface extends WorkerEventInterface {
     private worker: Worker;
 
     constructor(url: string) {
-        const worker = new Worker(url, {type: 'module'});
+        const worker = new Worker(url);//, {type: 'module'}); can't use this yet https://crbug.com/680046
         super(worker);
 
         this.worker = worker;

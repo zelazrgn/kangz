@@ -62,5 +62,4 @@ function chooseAction(player, time, fightLength) {
             warrior.log(time, 'queueing heroic strike');
     }
 }
-;
 //# sourceMappingURL=run_simulation_worker.js.map

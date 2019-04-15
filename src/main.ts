@@ -189,7 +189,7 @@ function startSim() {
 
     simsContainerEl.append(simEl);
 
-    const worker = new WorkerInterface('./js/run_simulation_worker.js');
+    const worker = new WorkerInterface('./js/worker.js');
 
     worker.addEventListener('status', (status: any) => {
         const dps = status.damageDone / status.duration * 1000;

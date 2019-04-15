@@ -77,4 +77,4 @@ function chooseAction (player: Player, time: number, fightLength: number) {
         warrior.queuedSpell = warrior.heroicStrike;
         if (warrior.log) warrior.log(time, 'queueing heroic strike');
     }
-};
+}

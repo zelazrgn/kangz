@@ -25,7 +25,7 @@ class WorkerEventInterface {
 }
 export class WorkerInterface extends WorkerEventInterface {
     constructor(url) {
-        const worker = new Worker(url, { type: 'module' });
+        const worker = new Worker(url);
         super(worker);
         this.worker = worker;
     }
