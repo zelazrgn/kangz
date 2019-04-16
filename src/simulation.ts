@@ -8,7 +8,7 @@ export type ItemWithSlot = [ItemDescription, ItemSlot];
 
 // TODO - change this interface so that ChooseAction cannot screw up the sim or cheat
 // e.g. ChooseAction shouldn't cast spells at a current time
-export type ChooseAction = (player: Player, time: number, fightLength: number) => void;
+export type ChooseAction = (player: Player, time: number, fightLength: number) => number|undefined;
 
 class Fight {
     player: Player;
@@ -46,7 +46,7 @@ class Fight {
 
         this.player.updateAttackingState(this.duration);
         // choose action after every swing which could be a rage generating event, but TODO: need to account for latency, reaction time (button mashing)
-        this.chooseAction(this.player, this.duration, this.fightLength);
+        const waitingForTime = this.chooseAction(this.player, this.duration, this.fightLength);
 
         let nextSwingTime = this.player.mh!.nextSwingTime;
 
@@ -61,6 +61,10 @@ class Fight {
             this.duration = Math.min(this.player.nextGCDTime, nextSwingTime, this.player.buffManager.nextOverTimeUpdate);
         } else {
             this.duration = Math.min(nextSwingTime, this.player.buffManager.nextOverTimeUpdate);
+        }
+
+        if (waitingForTime && waitingForTime < this.duration) {
+            this.duration = waitingForTime;
         }
     }
 }

@@ -23,7 +23,7 @@ class Fight {
         this.player.buffManager.update(this.duration);
         this.chooseAction(this.player, this.duration, this.fightLength);
         this.player.updateAttackingState(this.duration);
-        this.chooseAction(this.player, this.duration, this.fightLength);
+        const waitingForTime = this.chooseAction(this.player, this.duration, this.fightLength);
         let nextSwingTime = this.player.mh.nextSwingTime;
         if (this.player.oh) {
             nextSwingTime = Math.min(nextSwingTime, this.player.oh.nextSwingTime);
@@ -35,6 +35,9 @@ class Fight {
         }
         else {
             this.duration = Math.min(nextSwingTime, this.player.buffManager.nextOverTimeUpdate);
+        }
+        if (waitingForTime && waitingForTime < this.duration) {
+            this.duration = waitingForTime;
         }
     }
 }

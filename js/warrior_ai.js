@@ -11,6 +11,7 @@ export function chooseAction(player, time, fightLength) {
     if (warrior.rage < 30 && warrior.bloodRage.canCast(time)) {
         warrior.bloodRage.cast(time);
     }
+    let waitingForTime;
     if (warrior.nextGCDTime <= time) {
         if (timeRemainingSeconds <= 30 && warrior.deathWish.canCast(time)) {
             warrior.deathWish.cast(time);
@@ -21,13 +22,17 @@ export function chooseAction(player, time, fightLength) {
             warrior.bloodthirst.cast(time);
         }
         else if (warrior.bloodthirst.timeRemaining(time) < 1.5 + (warrior.latency / 1000)) {
-            return;
+            if (warrior.bloodthirst.cooldown > time) {
+                waitingForTime = warrior.bloodthirst.cooldown;
+            }
         }
         else if (warrior.whirlwind.canCast(time)) {
             warrior.whirlwind.cast(time);
         }
         else if (warrior.whirlwind.timeRemaining(time) < 1.5 + (warrior.latency / 1000)) {
-            return;
+            if (warrior.whirlwind.cooldown > time) {
+                waitingForTime = warrior.whirlwind.cooldown;
+            }
         }
         else if (warrior.rage >= 50 && warrior.hamstring.canCast(time)) {
             warrior.hamstring.cast(time);
@@ -38,5 +43,6 @@ export function chooseAction(player, time, fightLength) {
         if (warrior.log)
             warrior.log(time, 'queueing heroic strike');
     }
+    return waitingForTime;
 }
 //# sourceMappingURL=warrior_ai.js.map
