@@ -352,6 +352,7 @@ export class Player extends Unit {
         const rawDamage = this.calculateRawDamage(is_mh);
         
         if (!this.doingExtraAttacks && is_mh && this.queuedSpell && this.queuedSpell.canCast(time)) {
+            this.queuedSpell.cast(time); // handle spell cost
             const swingSpell = this.queuedSpell.spell;
             this.queuedSpell = undefined;
             const bonusDamage = swingSpell.bonusDamage;

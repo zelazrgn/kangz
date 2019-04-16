@@ -271,6 +271,7 @@ export class Player extends Unit {
     swingWeapon(time, target, is_mh) {
         const rawDamage = this.calculateRawDamage(is_mh);
         if (!this.doingExtraAttacks && is_mh && this.queuedSpell && this.queuedSpell.canCast(time)) {
+            this.queuedSpell.cast(time);
             const swingSpell = this.queuedSpell.spell;
             this.queuedSpell = undefined;
             const bonusDamage = swingSpell.bonusDamage;
