@@ -166,7 +166,7 @@ export const items: (ItemDescription|WeaponDescription)[] = [
         stats: { swordSkill: 4 }
     },
     {
-        name: "Rank 14 Sword",
+        name: "R14 Longsword",
         type: WeaponType.SWORD,
         slot: ItemSlot.MAINHAND|ItemSlot.OFFHAND,
         min: 138,
@@ -175,7 +175,16 @@ export const items: (ItemDescription|WeaponDescription)[] = [
         stats: { crit: 1, ap: 28 }
     },
     {
-        name: "Rank 14 Axe",
+        name: "R14 Swiftblade",
+        type: WeaponType.SWORD,
+        slot: ItemSlot.MAINHAND|ItemSlot.OFFHAND,
+        min: 85,
+        max: 129,
+        speed: 1.8,
+        stats: { crit: 1, ap: 28 }
+    },
+    {
+        name: "R14 Axe",
         type: WeaponType.AXE,
         slot: ItemSlot.MAINHAND|ItemSlot.OFFHAND,
         min: 138,
