@@ -35,6 +35,9 @@ export enum WeaponType {
     SWORD,
     AXE,
     DAGGER,
+    MACE2H,
+    SWORD2H,
+    AXE2H,
 }
 
 export interface WeaponDescription extends ItemDescription {
@@ -76,11 +79,22 @@ export class ItemEquiped {
     }
 }
 
+export class TemporaryWeaponEnchant {
+    stats?: StatValues;
+    proc?: Proc;
+
+    constructor(stats?: StatValues, proc?: Proc) {
+        this.stats = stats;
+        this.proc = proc;
+    }
+}
+
 export class WeaponEquiped extends ItemEquiped {
     weapon: WeaponDescription;
     nextSwingTime: number;
     procs: Proc[] = [];
     player: Player;
+    temporaryEnchant?: TemporaryWeaponEnchant;
 
     constructor(item: WeaponDescription, player: Player) {
         super(item, player);
@@ -95,17 +109,34 @@ export class WeaponEquiped extends ItemEquiped {
         this.nextSwingTime = 100; // TODO - need to reset this properly if ever want to simulate fights where you run out
     }
 
-    addProc(p: Proc) {
-        this.procs.push(p);
+    private get plusDamage() {
+        if (this.temporaryEnchant && this.temporaryEnchant.stats && this.temporaryEnchant.stats.plusDamage) {
+            return this.temporaryEnchant.stats.plusDamage
+        } else {
+            return 0;
+        }
     }
 
-    addStone() {
-        // TODO - add support for weapon stones
+    get min() {
+        return this.weapon.min + this.plusDamage;
+    }
+
+    get max() {
+        return this.weapon.max + this.plusDamage;
+    }
+
+    addProc(p: Proc) {
+        this.procs.push(p);
     }
 
     proc(time: number) {
         for (let proc of this.procs) {
             proc.run(this.player, this.weapon, time);
+        }
+
+        // windfury procs last
+        if (this.temporaryEnchant && this.temporaryEnchant.proc) {
+            this.temporaryEnchant.proc.run(this.player, this.weapon, time);
         }
     }
 }

@@ -1,9 +1,10 @@
+import { Race } from "./player.js";
 import { Warrior } from "./warrior.js";
-import { crusaderBuffMHProc, crusaderBuffOHProc, buffs } from "./data/spells.js";
+import { crusaderBuffMHProc, crusaderBuffOHProc, buffs, windfuryEnchant, denseDamageStone } from "./data/spells.js";
 import { Unit } from "./unit.js";
 import { items } from "./data/items.js";
-export function setupPlayer(stats, equipment, buffs, log) {
-    const player = new Warrior(stats, log);
+export function setupPlayer(race, stats, equipment, buffs, log) {
+    const player = new Warrior(race, stats, log);
     for (let [item, slot] of equipment) {
         player.equip(item, slot);
     }
@@ -11,8 +12,12 @@ export function setupPlayer(stats, equipment, buffs, log) {
         player.buffManager.add(buff, 0);
     }
     player.mh.addProc(crusaderBuffMHProc);
-    player.oh.addProc(crusaderBuffOHProc);
-    const boss = new Unit(63, 200);
+    player.mh.temporaryEnchant = race === Race.ORC ? windfuryEnchant : denseDamageStone;
+    if (player.oh) {
+        player.oh.addProc(crusaderBuffOHProc);
+        player.oh.temporaryEnchant = denseDamageStone;
+    }
+    const boss = new Unit(63, 4691 - 2250 - 640 - 505 - 600);
     player.target = boss;
     return player;
 }

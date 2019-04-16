@@ -5,6 +5,10 @@ body {
     font-family: sans-serif;
 }
 
+#race {
+    text-transform: capitalize;
+}
+
 #stats {
     display: grid;
     grid-template-columns: min-content 50px;
@@ -55,7 +59,14 @@ body {
     border-color: #9e9e9e;
 }
 
-.chosenBuffs, .equipedItems {
+.chosenRace {
+    text-transform: capitalize;
+}
+
+.simDetail {
     font-size: 12px;
+}
+
+.chosenBuffs, .equipedItems {
     border-bottom: 1px solid black;
 }

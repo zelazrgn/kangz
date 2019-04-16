@@ -19,6 +19,9 @@ export class LearnedSpell {
     onCooldown(time) {
         return this.cooldown > time;
     }
+    timeRemaining(time) {
+        return Math.max(0, (this.cooldown - time) / 1000);
+    }
     canCast(time) {
         if (this.spell.is_gcd && this.caster.nextGCDTime > time) {
             return false;
@@ -36,11 +39,11 @@ export class LearnedSpell {
             return false;
         }
         if (this.spell.is_gcd) {
-            this.caster.nextGCDTime = time + 1500;
+            this.caster.nextGCDTime = time + 1500 + this.caster.latency;
         }
         this.caster.power -= this.spell.cost;
         this.spell.cast(this.caster, time);
-        this.cooldown = time + this.spell.cooldown;
+        this.cooldown = time + this.spell.cooldown * 1000 + this.caster.latency;
         return true;
     }
 }
@@ -91,21 +94,23 @@ export class ExtraAttack extends Spell {
     }
 }
 export class SpellBuff extends Spell {
-    constructor(buff, cooldown) {
-        super(`SpellBuff(${buff.name})`, false, 0, cooldown || 0, (player, time) => {
+    constructor(buff, is_gcd, cost, cooldown) {
+        super(`SpellBuff(${buff.name})`, !!is_gcd, cost || 0, cooldown || 0, (player, time) => {
             player.buffManager.add(buff, time);
         });
     }
 }
 export class Proc {
     constructor(spell, rate) {
-        this.spell = spell;
+        this.spells = Array.isArray(spell) ? spell : [spell];
         this.rate = rate;
     }
     run(player, weapon, time) {
         const chance = this.rate.chance || this.rate.ppm * weapon.speed / 60;
         if (Math.random() <= chance) {
-            this.spell.cast(player, time);
+            for (let spell of this.spells) {
+                spell.cast(player, time);
+            }
         }
     }
 }

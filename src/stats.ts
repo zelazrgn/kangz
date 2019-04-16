@@ -8,11 +8,15 @@ export interface StatValues {
     statMult?: number;
     damageMult?: number;
     armorPenetration?: number;
+    plusDamage?: number;
 
     swordSkill?: number;
     axeSkill?: number;
     maceSkill?: number;
     daggerSkill?: number;
+    sword2HSkill?: number;
+    axe2HSkill?: number;
+    mace2HSkill?: number;
 }
 
 export class Stats implements StatValues {
@@ -25,11 +29,15 @@ export class Stats implements StatValues {
     statMult!: number;
     damageMult!: number;
     armorPenetration!: number;
+    plusDamage!: number;
 
     swordSkill!: number;
     axeSkill!: number;
     maceSkill!: number;
     daggerSkill!: number;
+    sword2HSkill!: number;
+    axe2HSkill!: number;
+    mace2HSkill!: number;
 
     constructor(s?: StatValues) {
         this.set(s);
@@ -45,11 +53,17 @@ export class Stats implements StatValues {
         this.statMult = (s && s.statMult) || 1;
         this.damageMult = (s && s.damageMult) || 1;
         this.armorPenetration = (s && s.armorPenetration) || 0;
+        this.plusDamage = (s && s.plusDamage) || 0;
 
         this.swordSkill = (s && s.swordSkill) || 0;
         this.axeSkill = (s && s.axeSkill) || 0;
         this.maceSkill = (s && s.maceSkill) || 0;
         this.daggerSkill = (s && s.daggerSkill) || 0;
+        this.sword2HSkill = (s && s.sword2HSkill) || 0;
+        this.axe2HSkill = (s && s.axe2HSkill) || 0;
+        this.mace2HSkill = (s && s.mace2HSkill) || 0;
+
+        return this;
     }
 
     add(s: StatValues) {
@@ -62,10 +76,16 @@ export class Stats implements StatValues {
         this.statMult *= (s.statMult || 1);
         this.damageMult *= (s.damageMult || 1);
         this.armorPenetration += (s.armorPenetration || 0);
+        this.plusDamage += (s.plusDamage || 0);
 
         this.swordSkill += (s.swordSkill || 0);
         this.axeSkill += (s.axeSkill || 0);
         this.maceSkill += (s.maceSkill || 0);
         this.daggerSkill += (s.daggerSkill || 0);
+        this.sword2HSkill += (s.sword2HSkill || 0);
+        this.axe2HSkill += (s.axe2HSkill || 0);
+        this.mace2HSkill += (s.mace2HSkill || 0);
+
+        return this;
     }
 }

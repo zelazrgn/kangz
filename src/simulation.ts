@@ -1,7 +1,7 @@
 import { StatValues, Stats } from "./stats.js";
 import { ItemDescription, ItemSlot } from "./item.js";
 import { Buff } from "./buff.js";
-import { LogFunction, Player } from "./player.js";
+import { LogFunction, Player, Race } from "./player.js";
 import { setupPlayer } from "./simulation_utils.js";
 
 export type ItemWithSlot = [ItemDescription, ItemSlot];
@@ -16,8 +16,8 @@ class Fight {
     protected fightLength: number;
     duration = 0;
 
-    constructor(stats: StatValues, equipment: ItemWithSlot[], buffs: Buff[], chooseAction: ChooseAction, fightLength = 60, log?: LogFunction) {
-        this.player = setupPlayer(stats, equipment, buffs, log);
+    constructor(race: Race, stats: StatValues, equipment: ItemWithSlot[], buffs: Buff[], chooseAction: ChooseAction, fightLength = 60, log?: LogFunction) {
+        this.player = setupPlayer(race, stats, equipment, buffs, log);
         this.chooseAction = chooseAction;
         this.fightLength = (fightLength + Math.random() * 4 - 2) * 1000;
     }
@@ -48,13 +48,19 @@ class Fight {
         // choose action after every swing which could be a rage generating event, but TODO: need to account for latency, reaction time (button mashing)
         this.chooseAction(this.player, this.duration, this.fightLength);
 
+        let nextSwingTime = this.player.mh!.nextSwingTime;
+
+        if (this.player.oh) {
+            nextSwingTime = Math.min(nextSwingTime, this.player.oh.nextSwingTime);
+        }
+
         // temporary hack
         if (this.player.extraAttackCount) {
             // don't increment duration (TODO: but I really should because the server doesn't loop instantly)
         } else if (this.player.nextGCDTime > this.duration) {
-            this.duration = Math.min(this.player.nextGCDTime, this.player.mh!.nextSwingTime, this.player.oh!.nextSwingTime, this.player.buffManager.nextOverTimeUpdate);
+            this.duration = Math.min(this.player.nextGCDTime, nextSwingTime, this.player.buffManager.nextOverTimeUpdate);
         } else {
-            this.duration = Math.min(this.player.mh!.nextSwingTime, this.player.oh!.nextSwingTime, this.player.buffManager.nextOverTimeUpdate);
+            this.duration = Math.min(nextSwingTime, this.player.buffManager.nextOverTimeUpdate);
         }
     }
 }
@@ -93,6 +99,7 @@ class RealtimeFight extends Fight {
 export type FightResult = { damageDone: number, fightLength: number};
 
 export class Simulation {
+    race: Race;
     stats: StatValues;
     equipment: ItemWithSlot[];
     buffs: Buff[];
@@ -108,7 +115,8 @@ export class Simulation {
 
     currentFight?: Fight;
 
-    constructor(stats: StatValues, equipment: ItemWithSlot[], buffs: Buff[], chooseAction: ChooseAction, fightLength = 60, realtime = false, log?: LogFunction) {
+    constructor(race: Race, stats: StatValues, equipment: ItemWithSlot[], buffs: Buff[], chooseAction: ChooseAction, fightLength = 60, realtime = false, log?: LogFunction) {
+        this.race = race;
         this.stats = stats;
         this.equipment = equipment;
         this.buffs = buffs;
@@ -158,7 +166,7 @@ export class Simulation {
                     return;
                 }
 
-                this.currentFight = new fightClass(this.stats, this.equipment, this.buffs, this.chooseAction, this.fightLength, this.realtime ? this.log : undefined);
+                this.currentFight = new fightClass(this.race, this.stats, this.equipment, this.buffs, this.chooseAction, this.fightLength, this.realtime ? this.log : undefined);
                 this.currentFight.run().then((res) => {
                     this.fightResults.push(res);
                     count++;

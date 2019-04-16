@@ -1,8 +1,8 @@
 import { setupPlayer } from "./simulation_utils.js";
 class Fight {
-    constructor(stats, equipment, buffs, chooseAction, fightLength = 60, log) {
+    constructor(race, stats, equipment, buffs, chooseAction, fightLength = 60, log) {
         this.duration = 0;
-        this.player = setupPlayer(stats, equipment, buffs, log);
+        this.player = setupPlayer(race, stats, equipment, buffs, log);
         this.chooseAction = chooseAction;
         this.fightLength = (fightLength + Math.random() * 4 - 2) * 1000;
     }
@@ -24,13 +24,17 @@ class Fight {
         this.chooseAction(this.player, this.duration, this.fightLength);
         this.player.updateAttackingState(this.duration);
         this.chooseAction(this.player, this.duration, this.fightLength);
+        let nextSwingTime = this.player.mh.nextSwingTime;
+        if (this.player.oh) {
+            nextSwingTime = Math.min(nextSwingTime, this.player.oh.nextSwingTime);
+        }
         if (this.player.extraAttackCount) {
         }
         else if (this.player.nextGCDTime > this.duration) {
-            this.duration = Math.min(this.player.nextGCDTime, this.player.mh.nextSwingTime, this.player.oh.nextSwingTime, this.player.buffManager.nextOverTimeUpdate);
+            this.duration = Math.min(this.player.nextGCDTime, nextSwingTime, this.player.buffManager.nextOverTimeUpdate);
         }
         else {
-            this.duration = Math.min(this.player.mh.nextSwingTime, this.player.oh.nextSwingTime, this.player.buffManager.nextOverTimeUpdate);
+            this.duration = Math.min(nextSwingTime, this.player.buffManager.nextOverTimeUpdate);
         }
     }
 }
@@ -66,10 +70,11 @@ class RealtimeFight extends Fight {
     }
 }
 export class Simulation {
-    constructor(stats, equipment, buffs, chooseAction, fightLength = 60, realtime = false, log) {
+    constructor(race, stats, equipment, buffs, chooseAction, fightLength = 60, realtime = false, log) {
         this.requestStop = false;
         this.paused = false;
         this.fightResults = [];
+        this.race = race;
         this.stats = stats;
         this.equipment = equipment;
         this.buffs = buffs;
@@ -111,7 +116,7 @@ export class Simulation {
                     setTimeout(outerloop, 0);
                     return;
                 }
-                this.currentFight = new fightClass(this.stats, this.equipment, this.buffs, this.chooseAction, this.fightLength, this.realtime ? this.log : undefined);
+                this.currentFight = new fightClass(this.race, this.stats, this.equipment, this.buffs, this.chooseAction, this.fightLength, this.realtime ? this.log : undefined);
                 this.currentFight.run().then((res) => {
                     this.fightResults.push(res);
                     count++;

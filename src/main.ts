@@ -1,9 +1,10 @@
-import { items } from "./data/items.js";
-import { StatValues } from "./stats.js";
+import { items, getIndexForItemName } from "./data/items.js";
+import { StatValues, Stats } from "./stats.js";
 import { ItemSlot, ItemDescription } from "./item.js";
 import { SimulationDescription, setupPlayer, equipmentIndicesToItem, buffIndicesToBuff } from "./simulation_utils.js";
 import { WorkerInterface } from "./worker_event_interface.js";
 import { buffs } from "./data/spells.js";
+import { Race } from "./player.js";
 
 const realtimeEl: HTMLInputElement = <HTMLInputElement>document.getElementById('realtime')!;
 
@@ -15,6 +16,24 @@ const statEls: {[index: string]: HTMLInputElement} = {};
 const myStatsEl = document.getElementById('myStats')!;
 
 const simsContainerEl = document.getElementById('simsContainer')!;
+
+const raceEl = <HTMLSelectElement>document.getElementById('race')!;
+
+function getRace(): Race {
+    return parseInt(raceEl.value);
+}
+
+for (let race of [
+    Race.HUMAN,
+    Race.ORC,
+]) {
+    const option = document.createElement('option');
+    option.value = `${race}`;
+    option.textContent = Race[race].toLowerCase();
+    raceEl.appendChild(option);
+}
+
+raceEl.addEventListener('change', updateStats);
 
 
 for (let el of statContainerEL.getElementsByTagName("input")) {
@@ -62,6 +81,12 @@ function addItemToCategories(item: ItemDescription, idx: number) {
     }
 }
 
+{
+    const option = document.createElement('option');
+    option.textContent = 'None';
+    categoryEls.get(ItemSlot.OFFHAND)!.appendChild(option);
+}
+
 for (let [idx, item] of items.entries()) {
     addItemToCategories(item, idx);
 }
@@ -78,19 +103,27 @@ for (let [slot, categoryEl] of categoryEls) {
 }
 
 // default items
-categoryEls.get(ItemSlot.MAINHAND)!.value = "9"; // Empyrean
-categoryEls.get(ItemSlot.RING2)!.value = "16"; // QSR
-categoryEls.get(ItemSlot.TRINKET2)!.value = "11"; // HOJ
 
-function loadStats(): StatValues {
-    const res = { maceSkill: 305, swordSkill: 305, str: 120, agi: 80, ap: 0, hit: 0, crit: 0 }; // human
-    res.ap += parseInt(statEls.ap!.value);
-    res.str += parseInt(statEls.str!.value);
-    res.agi += parseInt(statEls.agi!.value);
-    res.hit += parseInt(statEls.hit!.value);
-    res.crit += parseInt(statEls.crit!.value);
+function setDefault(slot: ItemSlot, itemName: string) {
+    categoryEls.get(slot)!.value = '' + getIndexForItemName(itemName);
+}
 
-    return res;
+setDefault(ItemSlot.MAINHAND, "Empyrean Demolisher");
+setDefault(ItemSlot.OFFHAND, "Anubisath Warhammer");
+setDefault(ItemSlot.RING2, "Quick Strike Ring");
+setDefault(ItemSlot.TRINKET2, "Hand of Justice");
+setDefault(ItemSlot.HANDS, "Gauntlets of Annihilation");
+setDefault(ItemSlot.FEET, "Chromatic Boots");
+
+function getStats(): StatValues {
+    return {
+        ap: parseInt(statEls.ap!.value),
+        str: parseInt(statEls.str!.value),
+        agi: parseInt(statEls.agi!.value),
+        hit: parseInt(statEls.hit!.value),
+        crit: parseInt(statEls.crit!.value),
+        haste: parseFloat(statEls.haste!.value),
+    };
 }
 
 function getEquipmentIndices(): [number, ItemSlot][] {
@@ -109,10 +142,16 @@ function getEquipmentIndices(): [number, ItemSlot][] {
 function getBuffs(): number[] {
     const res: number[] = [];
 
+    const race = getRace();
+
     for (let [idx, buff] of buffs.entries()) {
-        if (buff.name !== "Warchief's Blessing") {
-            res.push(idx);
+        if (race === Race.ORC) {
+            if (buff.name.includes('Blessing of')) {
+                continue;
+            }
         }
+
+        res.push(idx);
     }
 
     return res;
@@ -122,9 +161,20 @@ document.getElementById('startBtn')!.addEventListener('click', () => {
     startSim();
 });
 
+function formatStats(stats: StatValues) {
+    const statsFull = new Stats(stats);
+
+    return `AP: ${statsFull.ap}
+        Crit: ${statsFull.crit}
+        Hit: ${statsFull.hit}
+        Str: ${(statsFull.str)}
+        Agi: ${(statsFull.agi)}
+        Haste: ${(statsFull.haste)}`;
+}
+
 function updateStats() {
     const player = (() => {
-        const player = setupPlayer(loadStats(), equipmentIndicesToItem(getEquipmentIndices()), buffIndicesToBuff(getBuffs()), undefined);
+        const player = setupPlayer(getRace(), getStats(), equipmentIndicesToItem(getEquipmentIndices()), buffIndicesToBuff(getBuffs()), undefined);
         player.buffManager.update(0);
         return player;
     })();
@@ -136,7 +186,9 @@ function updateStats() {
         Crit: ${player.calculateCritChance().toFixed(2)}
         Hit: ${stats.hit}
         Str: ${(stats.str * stats.statMult).toFixed(2)}
-        Agi: ${(stats.agi * stats.statMult).toFixed(2)}`;
+        Agi: ${(stats.agi * stats.
+            statMult).toFixed(2)}
+        Haste: ${(stats.haste)};`;
 }
 updateStats();
 
@@ -170,13 +222,23 @@ function startSim() {
     dpsEl.classList.add('dps');
     simEl.append(dpsEl);
 
+    const chosenRaceEL = document.createElement('div');
+    chosenRaceEL.classList.add('simDetail', 'chosenRace');
+    chosenRaceEL.textContent = 'Race: ' + Race[getRace()].toLowerCase();
+    simEl.append(chosenRaceEL);
+
+    const chosenStatsEL = document.createElement('div');
+    chosenStatsEL.classList.add('simDetail', 'chosenStats');
+    chosenStatsEL.textContent = 'Stats: ' + formatStats(getStats());
+    simEl.append(chosenStatsEL);
+
     const itemsEl = document.createElement('div');
-    itemsEl.classList.add('equipedItems');
+    itemsEl.classList.add('simDetail', 'equipedItems');
     itemsEl.textContent = 'Items: ' + equipmentIndicesToItem(getEquipmentIndices()).map(([item, slot]) => item.name).join(', ');
     simEl.append(itemsEl);
 
     const buffsEl = document.createElement('div');
-    buffsEl.classList.add('chosenBuffs');
+    buffsEl.classList.add('simDetail', 'chosenBuffs');
     buffsEl.textContent = 'Buffs: ' + buffIndicesToBuff(getBuffs()).map((buff) => buff.name).join(', ');
     simEl.append(buffsEl);  
 
@@ -220,7 +282,8 @@ function startSim() {
     }
 
     const simdisc: SimulationDescription = {
-        stats: loadStats(),
+        race: getRace(),
+        stats: getStats(),
         equipment: getEquipmentIndices(),
         buffs: getBuffs(),
         fightLength: 60,
@@ -229,5 +292,3 @@ function startSim() {
 
     worker.send('simulate', simdisc);
 }
-
-startSim();

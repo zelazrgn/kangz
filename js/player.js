@@ -3,6 +3,11 @@ import { Unit } from "./unit.js";
 import { urand, clamp } from "./math.js";
 import { BuffManager } from "./buff.js";
 import { Stats } from "./stats.js";
+export var Race;
+(function (Race) {
+    Race[Race["HUMAN"] = 0] = "HUMAN";
+    Race[Race["ORC"] = 1] = "ORC";
+})(Race || (Race = {}));
 export var MeleeHitOutcome;
 (function (MeleeHitOutcome) {
     MeleeHitOutcome[MeleeHitOutcome["MELEE_HIT_EVADE"] = 0] = "MELEE_HIT_EVADE";
@@ -39,6 +44,7 @@ export class Player extends Unit {
         this.doingExtraAttacks = false;
         this.damageDone = 0;
         this.queuedSpell = undefined;
+        this.latency = 50;
         this.buffManager = new BuffManager(this, new Stats(stats));
         this.log = log;
     }
@@ -94,19 +100,31 @@ export class Player extends Unit {
         switch (weaponType) {
             case WeaponType.MACE:
                 {
-                    return this.buffManager.stats.maceSkill;
+                    return this.maxSkillForLevel + this.buffManager.stats.maceSkill;
                 }
             case WeaponType.SWORD:
                 {
-                    return this.buffManager.stats.swordSkill;
+                    return this.maxSkillForLevel + this.buffManager.stats.swordSkill;
                 }
             case WeaponType.AXE:
                 {
-                    return this.buffManager.stats.axeSkill;
+                    return this.maxSkillForLevel + this.buffManager.stats.axeSkill;
                 }
             case WeaponType.DAGGER:
                 {
-                    return this.buffManager.stats.daggerSkill;
+                    return this.maxSkillForLevel + this.buffManager.stats.daggerSkill;
+                }
+            case WeaponType.MACE2H:
+                {
+                    return this.maxSkillForLevel + this.buffManager.stats.mace2HSkill;
+                }
+            case WeaponType.SWORD2H:
+                {
+                    return this.maxSkillForLevel + this.buffManager.stats.sword2HSkill;
+                }
+            case WeaponType.AXE2H:
+                {
+                    return this.maxSkillForLevel + this.buffManager.stats.axe2HSkill;
                 }
             default:
                 {
@@ -153,8 +171,8 @@ export class Player extends Unit {
         const weapon = is_mh ? this.mh : this.oh;
         const ap_bonus = this.ap / 14 * weapon.weapon.speed;
         return [
-            Math.trunc(weapon.weapon.min + ap_bonus),
-            Math.trunc(weapon.weapon.max + ap_bonus)
+            Math.trunc(weapon.min + ap_bonus),
+            Math.trunc(weapon.max + ap_bonus)
         ];
     }
     calculateRawDamage(is_mh) {

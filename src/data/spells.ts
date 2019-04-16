@@ -1,6 +1,7 @@
 import { Buff } from "../buff.js";
-import { SpellBuff, Proc } from "../spell.js";
+import { SpellBuff, Proc, ExtraAttack } from "../spell.js";
 import { Stats, StatValues } from "../stats.js";
+import { TemporaryWeaponEnchant } from "../item.js";
 
 
 export interface BuffDescription {
@@ -126,3 +127,10 @@ export const buffs: Buff[] = [
 // crusader buffs apparently can be further stacked by swapping weapons but not going to bother with that
 export const crusaderBuffMHProc = new Proc(new SpellBuff(new Buff("Crusader MH", 15, new Stats({str: 100}))), {ppm: 1});
 export const crusaderBuffOHProc = new Proc(new SpellBuff(new Buff("Crusader OH", 15, new Stats({str: 100}))), {ppm: 1});
+
+export const denseDamageStone = new TemporaryWeaponEnchant({ plusDamage: 8 });
+
+export const windfuryEnchant = new TemporaryWeaponEnchant(undefined, new Proc([
+    new ExtraAttack("Windfury Totem", 1),
+    new SpellBuff(new Buff("Windfury Totem", 1.5, { ap: 315 }))
+], {chance: 0.2}));

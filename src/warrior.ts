@@ -1,15 +1,19 @@
-import { Player, MeleeHitOutcome } from "./player.js";
+import { Player, MeleeHitOutcome, Race } from "./player.js";
 import { Buff, BuffOverTime } from "./buff.js";
 import { Unit } from "./unit.js";
 import { Spell, LearnedSpell, SpellDamage, SpellType, SwingSpell, LearnedSwingSpell, Proc, SpellBuff } from "./spell.js";
 import { clamp } from "./math.js";
-import { StatValues } from "./stats.js";
+import { StatValues, Stats } from "./stats.js";
 
 const flurry = new Buff("Flurry", 15, {haste: 1.3}, true, 3, undefined, undefined, false);
 
+export const raceToStats = new Map<Race, StatValues>();
+raceToStats.set(Race.HUMAN, { maceSkill: 5, swordSkill: 5, mace2HSkill: 5, sword2HSkill: 5, str: 120, agi: 80 });
+raceToStats.set(Race.ORC, { axeSkill: 5, axe2HSkill: 5, str: 123, agi: 77 });
+
 export class Warrior extends Player {
     flurryCount = 0;
-    rage = 0; // TODO - allow simulation to choose starting rage
+    rage = 80; // TODO - allow simulation to choose starting rage
 
     execute = new LearnedSpell(executeSpell, this);
     bloodthirst = new LearnedSpell(bloodthirstSpell, this);
@@ -17,9 +21,10 @@ export class Warrior extends Player {
     whirlwind = new LearnedSpell(whirlwindSpell, this);
     heroicStrike = new LearnedSwingSpell(heroicStrikeSpell, this);
     bloodRage = new LearnedSpell(bloodRage, this);
+    deathWish = new LearnedSpell(deathWish, this);
 
-    constructor(stats: StatValues, logCallback?: (time: number, text: string) => void) {
-        super(stats, logCallback);
+    constructor(race: Race, stats: StatValues, logCallback?: (time: number, text: string) => void) {
+        super(new Stats(raceToStats.get(race)).add(stats), logCallback);
 
         this.buffManager.add(angerManagementOT, Math.random() * -3000); // randomizing anger management timing
     }
@@ -58,7 +63,8 @@ export class Warrior extends Player {
         // For Taking Damage (both pre and post expansion):
         // Rage Gained = (Damage Taken) / (Rage Conversion at Your Level) * 2.5
         // Rage Conversion at level 60: 230.6
-        // TODO - can you gain fractions of a rage?        
+        // TODO - how do fractions of rage work? it appears you do gain fractions based on exec damage
+        // not truncating for now
         
         const LEVEL_60_RAGE_CONV = 230.6;
         let addRage = damage / LEVEL_60_RAGE_CONV;
@@ -69,8 +75,6 @@ export class Warrior extends Player {
             // TODO - check for berserker rage 1.3x modifier
             addRage *= 2.5;
         }
-
-        addRage = Math.trunc(addRage);
 
         if (this.log) this.log(time, `Gained ${Math.min(addRage, 100 - this.rage)} rage (${Math.min(100, this.power + addRage)})`);
 
@@ -112,17 +116,18 @@ export class Warrior extends Player {
 
 const heroicStrikeSpell = new SwingSpell("Heroic Strike", 157, 12);
 
+// TODO - needs to wipe out all rage even though it only costs 10
 const executeSpell = new SpellDamage("Execute", (player: Player) => {
-    return 450 + ((<Warrior>player).rage - 10);
+    return 600 + ((<Warrior>player).rage - 10);
 }, SpellType.PHYSICAL_WEAPON, true, 10, 0);
 
 const bloodthirstSpell = new SpellDamage("Bloodthirst", (player: Player) => {
     return (<Warrior>player).ap * 0.45;
-}, SpellType.PHYSICAL, true, 30, 6000);
+}, SpellType.PHYSICAL, true, 30, 6);
 
 const whirlwindSpell = new SpellDamage("Whirlwind", (player: Player) => {
     return player.calculateRawDamage(true);
-}, SpellType.PHYSICAL_WEAPON, true, 25, 10000);
+}, SpellType.PHYSICAL_WEAPON, true, 25, 10);
 
 const hamstringSpell = new SpellDamage("Hamstring", 45, SpellType.PHYSICAL_WEAPON, true, 10, 0);
 
@@ -136,8 +141,10 @@ const bloodRageOT = new BuffOverTime("Bloodrage", 10, undefined, 1000, (player: 
     if (player.log) player.log(time, `You gained 1 rage from Bloodrage`);
 });
 
-const bloodRage = new Spell("Bloodrage", false, 0, 60 * 1000, (player: Player, time: number) => {
+const bloodRage = new Spell("Bloodrage", false, 0, 60, (player: Player, time: number) => {
     player.power += 10;
     if (player.log) player.log(time, `You gain 10 rage from Bloodrage`);
     player.buffManager.add(bloodRageOT, time);
 });
+
+const deathWish = new SpellBuff(new Buff("Death Wish", 30, { damageMult: 1.2 }), true, 10, 3 * 60);

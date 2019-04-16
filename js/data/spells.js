@@ -1,6 +1,7 @@
 import { Buff } from "../buff.js";
-import { SpellBuff, Proc } from "../spell.js";
+import { SpellBuff, Proc, ExtraAttack } from "../spell.js";
 import { Stats } from "../stats.js";
+import { TemporaryWeaponEnchant } from "../item.js";
 export const buffs = [
     {
         name: "Battle Shout",
@@ -115,4 +116,9 @@ export const buffs = [
 ].map((bd) => new Buff(bd.name, bd.duration, bd.stats));
 export const crusaderBuffMHProc = new Proc(new SpellBuff(new Buff("Crusader MH", 15, new Stats({ str: 100 }))), { ppm: 1 });
 export const crusaderBuffOHProc = new Proc(new SpellBuff(new Buff("Crusader OH", 15, new Stats({ str: 100 }))), { ppm: 1 });
+export const denseDamageStone = new TemporaryWeaponEnchant({ plusDamage: 8 });
+export const windfuryEnchant = new TemporaryWeaponEnchant(undefined, new Proc([
+    new ExtraAttack("Windfury Totem", 1),
+    new SpellBuff(new Buff("Windfury Totem", 1.5, { ap: 315 }))
+], { chance: 0.2 }));
 //# sourceMappingURL=spells.js.map

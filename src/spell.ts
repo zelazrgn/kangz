@@ -36,6 +36,10 @@ export class LearnedSpell {
         return this.cooldown > time;
     }
 
+    timeRemaining(time: number) {
+        return Math.max(0, (this.cooldown - time) / 1000);
+    }
+
     canCast(time: number): boolean {
         if (this.spell.is_gcd && this.caster.nextGCDTime > time) {
             return false;
@@ -58,14 +62,14 @@ export class LearnedSpell {
         }
 
         if (this.spell.is_gcd) {
-            this.caster.nextGCDTime = time + 1500;
+            this.caster.nextGCDTime = time + 1500 + this.caster.latency; // TODO - need to study the effects of latency in the game and consider human precision
         }
         
         this.caster.power -= this.spell.cost;
 
         this.spell.cast(this.caster, time);
 
-        this.cooldown = time + this.spell.cooldown;
+        this.cooldown = time + this.spell.cooldown * 1000 + this.caster.latency;
 
         return true;
     }
@@ -129,8 +133,8 @@ export class ExtraAttack extends Spell {
 }
 
 export class SpellBuff extends Spell {
-    constructor(buff: Buff, cooldown?: number) {
-        super(`SpellBuff(${buff.name})`, false, 0, cooldown || 0, (player: Player, time: number) => {
+    constructor(buff: Buff, is_gcd?: boolean, cost?: number, cooldown?: number) {
+        super(`SpellBuff(${buff.name})`, !!is_gcd, cost || 0, cooldown || 0, (player: Player, time: number) => {
             player.buffManager.add(buff, time);
         });
     }
@@ -141,11 +145,11 @@ type chance = {chance: number};
 type rate = ppm | chance;
 
 export class Proc {
-    protected spell: Spell;
+    protected spells: Spell[];
     protected rate: rate;
 
-    constructor(spell: Spell, rate: rate) {
-        this.spell = spell;
+    constructor(spell: Spell | Spell[], rate: rate) {
+        this.spells = Array.isArray(spell) ? spell : [spell];
         this.rate = rate;
     }
 
@@ -153,7 +157,9 @@ export class Proc {
         const chance = (<chance>this.rate).chance || (<ppm>this.rate).ppm * weapon.speed / 60;
 
         if (Math.random() <= chance) {
-            this.spell.cast(player, time)
+            for (let spell of this.spells) {
+                spell.cast(player, time);
+            }
         }
     }
 }

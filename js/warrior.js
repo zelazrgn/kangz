@@ -1,19 +1,24 @@
-import { Player, MeleeHitOutcome } from "./player.js";
+import { Player, MeleeHitOutcome, Race } from "./player.js";
 import { Buff, BuffOverTime } from "./buff.js";
-import { Spell, LearnedSpell, SpellDamage, SpellType, SwingSpell, LearnedSwingSpell } from "./spell.js";
+import { Spell, LearnedSpell, SpellDamage, SpellType, SwingSpell, LearnedSwingSpell, SpellBuff } from "./spell.js";
 import { clamp } from "./math.js";
+import { Stats } from "./stats.js";
 const flurry = new Buff("Flurry", 15, { haste: 1.3 }, true, 3, undefined, undefined, false);
+export const raceToStats = new Map();
+raceToStats.set(Race.HUMAN, { maceSkill: 5, swordSkill: 5, mace2HSkill: 5, sword2HSkill: 5, str: 120, agi: 80 });
+raceToStats.set(Race.ORC, { axeSkill: 5, axe2HSkill: 5, str: 123, agi: 77 });
 export class Warrior extends Player {
-    constructor(stats, logCallback) {
-        super(stats, logCallback);
+    constructor(race, stats, logCallback) {
+        super(new Stats(raceToStats.get(race)).add(stats), logCallback);
         this.flurryCount = 0;
-        this.rage = 0;
+        this.rage = 80;
         this.execute = new LearnedSpell(executeSpell, this);
         this.bloodthirst = new LearnedSpell(bloodthirstSpell, this);
         this.hamstring = new LearnedSpell(hamstringSpell, this);
         this.whirlwind = new LearnedSpell(whirlwindSpell, this);
         this.heroicStrike = new LearnedSwingSpell(heroicStrikeSpell, this);
         this.bloodRage = new LearnedSpell(bloodRage, this);
+        this.deathWish = new LearnedSpell(deathWish, this);
         this.buffManager.add(angerManagementOT, Math.random() * -3000);
     }
     get power() {
@@ -44,7 +49,6 @@ export class Warrior extends Player {
         else {
             addRage *= 2.5;
         }
-        addRage = Math.trunc(addRage);
         if (this.log)
             this.log(time, `Gained ${Math.min(addRage, 100 - this.rage)} rage (${Math.min(100, this.power + addRage)})`);
         this.power += addRage;
@@ -74,14 +78,14 @@ export class Warrior extends Player {
 }
 const heroicStrikeSpell = new SwingSpell("Heroic Strike", 157, 12);
 const executeSpell = new SpellDamage("Execute", (player) => {
-    return 450 + (player.rage - 10);
+    return 600 + (player.rage - 10);
 }, SpellType.PHYSICAL_WEAPON, true, 10, 0);
 const bloodthirstSpell = new SpellDamage("Bloodthirst", (player) => {
     return player.ap * 0.45;
-}, SpellType.PHYSICAL, true, 30, 6000);
+}, SpellType.PHYSICAL, true, 30, 6);
 const whirlwindSpell = new SpellDamage("Whirlwind", (player) => {
     return player.calculateRawDamage(true);
-}, SpellType.PHYSICAL_WEAPON, true, 25, 10000);
+}, SpellType.PHYSICAL_WEAPON, true, 25, 10);
 const hamstringSpell = new SpellDamage("Hamstring", 45, SpellType.PHYSICAL_WEAPON, true, 10, 0);
 export const angerManagementOT = new BuffOverTime("Anger Management", Number.MAX_SAFE_INTEGER, undefined, 3000, (player, time) => {
     player.power += 1;
@@ -93,10 +97,11 @@ const bloodRageOT = new BuffOverTime("Bloodrage", 10, undefined, 1000, (player, 
     if (player.log)
         player.log(time, `You gained 1 rage from Bloodrage`);
 });
-const bloodRage = new Spell("Bloodrage", false, 0, 60 * 1000, (player, time) => {
+const bloodRage = new Spell("Bloodrage", false, 0, 60, (player, time) => {
     player.power += 10;
     if (player.log)
         player.log(time, `You gain 10 rage from Bloodrage`);
     player.buffManager.add(bloodRageOT, time);
 });
+const deathWish = new SpellBuff(new Buff("Death Wish", 30, { damageMult: 1.2 }), true, 10, 3 * 60);
 //# sourceMappingURL=warrior.js.map

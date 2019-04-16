@@ -5,6 +5,11 @@ import { BuffManager } from "./buff.js";
 import { StatValues, Stats } from "./stats.js";
 import { Spell, Proc, LearnedSwingSpell } from "./spell.js";
 
+export enum Race {
+    HUMAN,
+    ORC,
+}
+
 export enum MeleeHitOutcome {
     MELEE_HIT_EVADE,
     MELEE_HIT_MISS,
@@ -54,6 +59,8 @@ export class Player extends Unit {
     queuedSpell: LearnedSwingSpell|undefined = undefined;
 
     log?: LogFunction;
+
+    latency = 50; // ms
 
     constructor(stats: StatValues, log?: LogFunction) {
         super(60, 0); // lvl, armor
@@ -126,22 +133,35 @@ export class Player extends Unit {
         const weapon = is_mh ? this.mh! : this.oh!;
         const weaponType = weapon.weapon.type;
 
+        // TODO, make this a map
         switch (weaponType) {
             case WeaponType.MACE:
             {
-                return this.buffManager.stats.maceSkill;
+                return this.maxSkillForLevel + this.buffManager.stats.maceSkill;
             }
             case WeaponType.SWORD:
             {
-                return this.buffManager.stats.swordSkill;
+                return this.maxSkillForLevel + this.buffManager.stats.swordSkill;
             }
             case WeaponType.AXE:
             {
-                return this.buffManager.stats.axeSkill;
+                return this.maxSkillForLevel + this.buffManager.stats.axeSkill;
             }
             case WeaponType.DAGGER:
             {
-                return this.buffManager.stats.daggerSkill;
+                return this.maxSkillForLevel + this.buffManager.stats.daggerSkill;
+            }
+            case WeaponType.MACE2H:
+            {
+                return this.maxSkillForLevel + this.buffManager.stats.mace2HSkill;
+            }
+            case WeaponType.SWORD2H:
+            {
+                return this.maxSkillForLevel + this.buffManager.stats.sword2HSkill;
+            }
+            case WeaponType.AXE2H:
+            {
+                return this.maxSkillForLevel + this.buffManager.stats.axe2HSkill;
             }
             default:
             {
@@ -199,8 +219,8 @@ export class Player extends Unit {
         const ap_bonus = this.ap / 14 * weapon.weapon.speed;
 
         return [
-            Math.trunc(weapon.weapon.min + ap_bonus),
-            Math.trunc(weapon.weapon.max + ap_bonus)
+            Math.trunc(weapon.min + ap_bonus),
+            Math.trunc(weapon.max + ap_bonus)
         ];
     }
 

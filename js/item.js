@@ -25,6 +25,9 @@ export var WeaponType;
     WeaponType[WeaponType["SWORD"] = 1] = "SWORD";
     WeaponType[WeaponType["AXE"] = 2] = "AXE";
     WeaponType[WeaponType["DAGGER"] = 3] = "DAGGER";
+    WeaponType[WeaponType["MACE2H"] = 4] = "MACE2H";
+    WeaponType[WeaponType["SWORD2H"] = 5] = "SWORD2H";
+    WeaponType[WeaponType["AXE2H"] = 6] = "AXE2H";
 })(WeaponType || (WeaponType = {}));
 export function isWeapon(item) {
     return "speed" in item;
@@ -48,6 +51,12 @@ export class ItemEquiped {
         }
     }
 }
+export class TemporaryWeaponEnchant {
+    constructor(stats, proc) {
+        this.stats = stats;
+        this.proc = proc;
+    }
+}
 export class WeaponEquiped extends ItemEquiped {
     constructor(item, player) {
         super(item, player);
@@ -59,14 +68,29 @@ export class WeaponEquiped extends ItemEquiped {
         this.player = player;
         this.nextSwingTime = 100;
     }
+    get plusDamage() {
+        if (this.temporaryEnchant && this.temporaryEnchant.stats && this.temporaryEnchant.stats.plusDamage) {
+            return this.temporaryEnchant.stats.plusDamage;
+        }
+        else {
+            return 0;
+        }
+    }
+    get min() {
+        return this.weapon.min + this.plusDamage;
+    }
+    get max() {
+        return this.weapon.max + this.plusDamage;
+    }
     addProc(p) {
         this.procs.push(p);
-    }
-    addStone() {
     }
     proc(time) {
         for (let proc of this.procs) {
             proc.run(this.player, this.weapon, time);
+        }
+        if (this.temporaryEnchant && this.temporaryEnchant.proc) {
+            this.temporaryEnchant.proc.run(this.player, this.weapon, time);
         }
     }
 }
