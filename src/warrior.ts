@@ -84,15 +84,18 @@ export class Warrior extends Player {
     updateProcs(time: number, is_mh: boolean, hitOutcome: MeleeHitOutcome, damageDone: number, cleanDamage: number, spell?: Spell) {
         super.updateProcs(time, is_mh, hitOutcome, damageDone, cleanDamage, spell);
 
-        // calculate rage
-        if (spell) { 
-            // TODO - do you gain rage from heroic strike if it is dodged/parried?
-        } else {
-            if ([MeleeHitOutcome.MELEE_HIT_PARRY, MeleeHitOutcome.MELEE_HIT_DODGE].includes(hitOutcome)) {
+        if ([MeleeHitOutcome.MELEE_HIT_PARRY, MeleeHitOutcome.MELEE_HIT_DODGE].includes(hitOutcome)) {
+            if (spell) {
+                // http://blue.mmo-champion.com/topic/69365-18-02-05-kalgans-response-to-warriors/ "since missing wastes 20% of the rage cost of the ability"
+                // TODO - not sure how blizzlike this is
+                if (spell !== whirlwindSpell) { // TODO - should check to see if it is an aoe spell or a single target spell
+                    this.rage += spell.cost * 0.82;
+                }
+            } else {
                 this.rewardRage(cleanDamage * 0.75, true, time); // TODO - where is this formula from?
-            } else if (damageDone) {
-                this.rewardRage(damageDone, true, time);
             }
+        } else if (damageDone && !spell) {
+            this.rewardRage(damageDone, true, time);
         }
 
         // instant attacks and misses/dodges don't use flurry charges // TODO - confirm

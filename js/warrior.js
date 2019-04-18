@@ -55,15 +55,18 @@ export class Warrior extends Player {
     }
     updateProcs(time, is_mh, hitOutcome, damageDone, cleanDamage, spell) {
         super.updateProcs(time, is_mh, hitOutcome, damageDone, cleanDamage, spell);
-        if (spell) {
-        }
-        else {
-            if ([MeleeHitOutcome.MELEE_HIT_PARRY, MeleeHitOutcome.MELEE_HIT_DODGE].includes(hitOutcome)) {
+        if ([MeleeHitOutcome.MELEE_HIT_PARRY, MeleeHitOutcome.MELEE_HIT_DODGE].includes(hitOutcome)) {
+            if (spell) {
+                if (spell !== whirlwindSpell) {
+                    this.rage += spell.cost * 0.82;
+                }
+            }
+            else {
                 this.rewardRage(cleanDamage * 0.75, true, time);
             }
-            else if (damageDone) {
-                this.rewardRage(damageDone, true, time);
-            }
+        }
+        else if (damageDone && !spell) {
+            this.rewardRage(damageDone, true, time);
         }
         if (!this.doingExtraAttacks
             && !(spell || spell === heroicStrikeSpell)
