@@ -83,9 +83,29 @@ export const items: (ItemDescription|WeaponDescription)[] = [
         stats: {str: 16, agi: 16}
     },
     {
+        name: "Drape of Unyielding Strength",
+        slot: ItemSlot.BACK,
+        stats: {str: 15, agi: 9, hit: 1}
+    },
+    {
         name: "Conqueror's Breastplate",
         slot: ItemSlot.CHEST,
         stats: {str: 20, agi: 16, hit: 1}
+    },
+    {
+        name: "Savage Gladiator Chain",
+        slot: ItemSlot.CHEST,
+        stats: {agi: 14, str: 13, crit: 2}
+    },
+    {
+        name: "Ghoul Skin Tunic",
+        slot: ItemSlot.CHEST,
+        stats: {str: 40, crit: 2}
+    },
+    {
+        name: "Breastplate of Annihilation",
+        slot: ItemSlot.CHEST,
+        stats: {str: 37, crit: 1, hit: 1}
     },
     {
         name: "Hive Defiler Wristguards",
@@ -166,6 +186,15 @@ export const items: (ItemDescription|WeaponDescription)[] = [
         stats: { swordSkill: 4 }
     },
     {
+        name: "Ancient Qiraji Ripper",
+        type: WeaponType.SWORD,
+        slot: ItemSlot.MAINHAND|ItemSlot.OFFHAND,
+        min: 114,
+        max: 213,
+        speed: 2.8,
+        stats: { crit: 1, ap: 20 }
+    },
+    {
         name: "R14 Longsword",
         type: WeaponType.SWORD,
         slot: ItemSlot.MAINHAND|ItemSlot.OFFHAND,
@@ -191,6 +220,24 @@ export const items: (ItemDescription|WeaponDescription)[] = [
         max: 207,
         speed: 2.9,
         stats: { crit: 1, ap: 28 }
+    },
+    {
+        name: "Blessed Qiraji War Axe",
+        type: WeaponType.AXE,
+        slot: ItemSlot.MAINHAND|ItemSlot.OFFHAND,
+        min: 110,
+        max: 205,
+        speed: 2.60,
+        stats: { crit: 1, ap: 14 }
+    },
+    {
+        name: "Crul'shorukh, Edge of Chaos",
+        type: WeaponType.AXE,
+        slot: ItemSlot.MAINHAND|ItemSlot.OFFHAND,
+        min: 101,
+        max: 188,
+        speed: 2.30,
+        stats: { ap: 36 }
     },
     {
         name: "Badge of the Swarmguard",

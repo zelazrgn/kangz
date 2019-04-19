@@ -5,20 +5,16 @@ import { SimulationDescription, setupPlayer, equipmentIndicesToItem, buffIndices
 import { WorkerInterface } from "./worker_event_interface.js";
 import { buffs } from "./data/spells.js";
 import { Race } from "./player.js";
-import { FightResult } from "./simulation.js";
 
 const realtimeEl: HTMLInputElement = <HTMLInputElement>document.getElementById('realtime')!;
-
 const statContainerEL = document.getElementById('stats')!;
-statContainerEL.getElementsByTagName("input");
-
 const statEls: {[index: string]: HTMLInputElement} = {};
-
 const myStatsEl = document.getElementById('myStats')!;
-
 const simsContainerEl = document.getElementById('simsContainer')!;
-
 const raceEl = <HTMLSelectElement>document.getElementById('race')!;
+const buffsEl = document.getElementById('buffs')!;
+const heroicStrikeRageReqEl = <HTMLInputElement>document.getElementById('heroicstrikerr')!;
+const hamstringRageReq = <HTMLInputElement>document.getElementById('hamstringrr')!;
 
 function getRace(): Race {
     return parseInt(raceEl.value);
@@ -35,7 +31,15 @@ for (let race of [
 }
 
 raceEl.addEventListener('change', updateStats);
+raceEl.addEventListener('change', () => {
+    const race = getRace();
 
+    for (let [idx, buff] of buffs.entries()) {
+        if (buff.name.includes('Blessing of')) {
+            buffInputEls[idx].checked = race === Race.HUMAN;
+        }
+    }
+});
 
 for (let el of statContainerEL.getElementsByTagName("input")) {
     statEls[el.name] = el;
@@ -115,16 +119,43 @@ setDefault(ItemSlot.RING2, "Quick Strike Ring");
 setDefault(ItemSlot.TRINKET2, "Hand of Justice");
 setDefault(ItemSlot.HANDS, "Gauntlets of Annihilation");
 setDefault(ItemSlot.FEET, "Chromatic Boots");
+setDefault(ItemSlot.BACK, "Drape of Unyielding Strength");
 
-function getStats(): StatValues {
-    return {
-        ap: parseInt(statEls.ap!.value),
-        str: parseInt(statEls.str!.value),
-        agi: parseInt(statEls.agi!.value),
-        hit: parseInt(statEls.hit!.value),
-        crit: parseInt(statEls.crit!.value),
-        haste: parseFloat(statEls.haste!.value),
-    };
+const buffInputEls: HTMLInputElement[] = [];
+
+for (let [idx, buff] of buffs.entries()) {
+    const race = getRace();
+
+    if (race === Race.ORC) {
+        if (buff.name.includes('Blessing of')) {
+            continue;
+        }
+    }
+
+    const labelEl = document.createElement('label');
+    labelEl.textContent = buff.name;
+
+    const inputEl = document.createElement('input');
+    inputEl.type = 'checkbox';
+    inputEl.value = `${idx}`;
+    inputEl.checked = true;
+    inputEl.addEventListener('change', updateStats);
+
+    buffInputEls.push(inputEl);
+
+    buffsEl.append(labelEl, inputEl);
+}
+
+function getBuffs(): number[] {
+    const res: number[] = [];
+
+    for (let inputEl of buffInputEls) {
+        if (inputEl.checked) {
+            res.push(parseInt(inputEl.value));
+        }
+    }
+
+    return res;
 }
 
 function getEquipmentIndices(): [number, ItemSlot][] {
@@ -140,27 +171,16 @@ function getEquipmentIndices(): [number, ItemSlot][] {
     return res;
 }
 
-function getBuffs(): number[] {
-    const res: number[] = [];
-
-    const race = getRace();
-
-    for (let [idx, buff] of buffs.entries()) {
-        if (race === Race.ORC) {
-            if (buff.name.includes('Blessing of')) {
-                continue;
-            }
-        }
-
-        res.push(idx);
-    }
-
-    return res;
+function getStats(): StatValues {
+    return {
+        ap: parseInt(statEls.ap!.value),
+        str: parseInt(statEls.str!.value),
+        agi: parseInt(statEls.agi!.value),
+        hit: parseInt(statEls.hit!.value),
+        crit: parseInt(statEls.crit!.value),
+        haste: parseFloat(statEls.haste!.value),
+    };
 }
-
-document.getElementById('startBtn')!.addEventListener('click', () => {
-    startSim();
-});
 
 function formatStats(stats: StatValues) {
     const statsFull = new Stats(stats);
@@ -298,8 +318,14 @@ function startSim() {
         equipment: getEquipmentIndices(),
         buffs: getBuffs(),
         fightLength: 60,
-        realtime: realtime
+        realtime: realtime,
+        heroicStrikeRageReq: parseInt(heroicStrikeRageReqEl.value),
+        hamstringRageReq: parseInt(hamstringRageReq.value),
     };
 
     worker.send('simulate', simdisc);
 }
+
+document.getElementById('startBtn')!.addEventListener('click', () => {
+    startSim();
+});

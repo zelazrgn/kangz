@@ -148,7 +148,7 @@ export class BuffManager {
 }
 
 export class Buff {
-    name: String;
+    name: string;
     stats?: StatValues|undefined;
     stacks: boolean;
     duration: number;

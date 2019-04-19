@@ -4,6 +4,12 @@
     </head>
     <body>
         <div id="selectOptionsContainer">
+            <div id="items">
+                <label for="race">Race</label>
+                <select id="race" name="race"></select>
+            </div>
+            <div id="buffs">
+            </div>
             <div id="stats">
                 <label for="ap">Raw AP</label>
                 <input type="number" id="ap" name="ap" min="0" value="0">
@@ -18,13 +24,15 @@
                 <label for="haste">Haste</label>
                 <input type="number" id="haste" name="haste" min="1" value="1">
             </div>
-            <div id="items">
-                <label for="race">Race</label>
-                <select id="race" name="race"></select>
+            <div id="ai_settings">
+                <label for="heroicstrikerr">Heroic Strike Rage Req.</label>
+                <input type="number" id="heroicstrikerr" name="heroicstrikerr" min="0" max="100" value="60">
+                <label for="hamstringrr">Hamstring Rage Req.</label>
+                <input type="number" id="hamstringrr" name="hamstringrr" min="0" max="100" value="50">
             </div>
             <div id="myStats"></div>
-            <input type="checkbox" id="realtime" name="realtime">
             <label for="realtime">Real-time</label>
+            <input type="checkbox" id="realtime" name="realtime">
             <button id="startBtn" type="button">Start</button>
         </div>
         <div id="simsContainer"></div>

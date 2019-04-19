@@ -2,7 +2,7 @@ import {  MainThreadInterface } from "./worker_event_interface.js";
 import { Simulation } from "./simulation.js";
 import { SimulationDescription, buffIndicesToBuff, equipmentIndicesToItem } from "./simulation_utils.js";
 import { LogFunction } from "./player.js";
-import { chooseAction } from "./warrior_ai.js";
+import { generateChooseAction } from "./warrior_ai.js";
 
 const mainThreadInterface = MainThreadInterface.instance;
 
@@ -25,7 +25,8 @@ mainThreadInterface.addEventListener('simulate', (data: any) => {
     currentSim = new Simulation(simdesc.race, simdesc.stats,
         equipmentIndicesToItem(simdesc.equipment),
         buffIndicesToBuff(simdesc.buffs),
-        chooseAction, simdesc.fightLength, simdesc.realtime, logFunction);
+        generateChooseAction(simdesc.heroicStrikeRageReq, simdesc.hamstringRageReq),
+        simdesc.fightLength, simdesc.realtime, logFunction);
 
     currentSim.start();
 

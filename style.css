@@ -9,9 +9,9 @@ body {
     text-transform: capitalize;
 }
 
-#stats {
+#stats, #buffs, #ai_settings {
     display: grid;
-    grid-template-columns: min-content 50px;
+    grid-template-columns: min-content min-content;
     grid-column-gap: 10px;
     text-align: right;
 }
@@ -23,7 +23,7 @@ body {
     text-align: right;
 }
 
-#stats label, #items label {
+label {
     white-space: nowrap;
     text-transform: capitalize;
 }
