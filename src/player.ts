@@ -62,6 +62,8 @@ export class Player extends Unit {
 
     latency = 50; // ms
 
+    powerLost = 0;
+
     constructor(stats: StatValues, log?: LogFunction) {
         super(60, 0); // lvl, armor
 

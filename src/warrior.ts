@@ -34,6 +34,7 @@ export class Warrior extends Player {
     }
 
     set power(power: number) {
+        this.powerLost += Math.max(0, power - 100);
         this.rage = clamp(power, 0, 100);
     }
 

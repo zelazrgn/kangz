@@ -13,7 +13,8 @@ class Fight {
             }
             f({
                 damageDone: this.player.damageDone,
-                fightLength: this.fightLength
+                fightLength: this.fightLength,
+                powerLost: this.player.powerLost
             });
         });
     }
@@ -61,7 +62,8 @@ class RealtimeFight extends Fight {
                 else {
                     f({
                         damageDone: this.player.damageDone,
-                        fightLength: this.fightLength
+                        fightLength: this.fightLength,
+                        powerLost: this.player.powerLost
                     });
                 }
             };
@@ -90,20 +92,24 @@ export class Simulation {
         const combinedFightResults = this.fightResults.reduce((acc, current) => {
             return {
                 damageDone: acc.damageDone + current.damageDone,
-                fightLength: acc.fightLength + current.fightLength
+                fightLength: acc.fightLength + current.fightLength,
+                powerLost: acc.powerLost + current.powerLost,
             };
         }, {
             damageDone: 0,
-            fightLength: 0
+            fightLength: 0,
+            powerLost: 0
         });
         if (this.realtime && this.currentFight) {
             combinedFightResults.damageDone += this.currentFight.player.damageDone;
             combinedFightResults.fightLength += this.currentFight.duration;
+            combinedFightResults.powerLost += this.currentFight.player.powerLost;
         }
         return {
             damageDone: combinedFightResults.damageDone,
             duration: combinedFightResults.fightLength,
-            fights: this.fightResults.length
+            fights: this.fightResults.length,
+            powerLost: combinedFightResults.powerLost,
         };
     }
     start() {

@@ -46,6 +46,7 @@ export class Player extends Unit {
         this.damageDone = 0;
         this.queuedSpell = undefined;
         this.latency = 50;
+        this.powerLost = 0;
         this.buffManager = new BuffManager(this, new Stats(stats));
         this.log = log;
     }

@@ -5,6 +5,7 @@ import { SimulationDescription, setupPlayer, equipmentIndicesToItem, buffIndices
 import { WorkerInterface } from "./worker_event_interface.js";
 import { buffs } from "./data/spells.js";
 import { Race } from "./player.js";
+import { FightResult } from "./simulation.js";
 
 const realtimeEl: HTMLInputElement = <HTMLInputElement>document.getElementById('realtime')!;
 
@@ -259,11 +260,21 @@ function startSim() {
         const seconds = status.duration / 1000;
         const days = seconds / 60 / 60 / 24;
 
+        dpsEl.textContent = '';
+
+        const rlpm = status.powerLost / status.duration * 1000 * 60;
+
         if (days >= 1) {
-            dpsEl.textContent = `Days: ${(days).toFixed(3)} DPS: ${dps.toFixed(1)}`;
+            dpsEl.textContent += `Days: ${(days).toFixed(3)}`;
         } else {
-            dpsEl.textContent = `Seconds: ${(seconds).toFixed(3)} DPS: ${dps.toFixed(1)}`;
+            dpsEl.textContent += `Seconds: ${(seconds).toFixed(3)}`;
         }
+
+        dpsEl.textContent += ` DPS: ${dps.toFixed(1)}`;
+
+
+        dpsEl.textContent += ` RPLM: ${rlpm.toFixed(1)}`;
+
     });
 
     if (realtime) {
