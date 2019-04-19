@@ -1,6 +1,7 @@
 export class Spell {
-    constructor(name, is_gcd, cost, cooldown, spellF) {
+    constructor(name, type, is_gcd, cost, cooldown, spellF) {
         this.name = name;
+        this.type = type;
         this.cost = cost;
         this.cooldown = cooldown;
         this.is_gcd = is_gcd;
@@ -49,7 +50,7 @@ export class LearnedSpell {
 }
 export class SwingSpell extends Spell {
     constructor(name, bonusDamage, cost) {
-        super(name, false, cost, 0, () => { });
+        super(name, SpellType.PHYSICAL_WEAPON, false, cost, 0, () => { });
         this.bonusDamage = bonusDamage;
     }
 }
@@ -61,16 +62,17 @@ export class LearnedSwingSpell extends LearnedSpell {
 }
 export var SpellType;
 (function (SpellType) {
-    SpellType[SpellType["PHYSICAL"] = 0] = "PHYSICAL";
-    SpellType[SpellType["PHYSICAL_WEAPON"] = 1] = "PHYSICAL_WEAPON";
+    SpellType[SpellType["NONE"] = 0] = "NONE";
+    SpellType[SpellType["BUFF"] = 1] = "BUFF";
+    SpellType[SpellType["PHYSICAL"] = 2] = "PHYSICAL";
+    SpellType[SpellType["PHYSICAL_WEAPON"] = 3] = "PHYSICAL_WEAPON";
 })(SpellType || (SpellType = {}));
 export class SpellDamage extends Spell {
     constructor(name, amount, type, is_gcd, cost, cooldown) {
-        super(name, is_gcd, cost, cooldown, (player, time) => {
+        super(name, type, is_gcd, cost, cooldown, (player, time) => {
             const dmg = (typeof amount === "number") ? amount : amount(player);
             if (type === SpellType.PHYSICAL || type === SpellType.PHYSICAL_WEAPON) {
-                const ignore_weapon_skill = type === SpellType.PHYSICAL;
-                player.dealMeleeDamage(time, dmg, player.target, true, this, ignore_weapon_skill);
+                player.dealMeleeDamage(time, dmg, player.target, true, this);
             }
         });
     }
@@ -83,7 +85,7 @@ export class SpellDamage2 extends SpellDamage {
 const fatalWounds = new SpellDamage2("Fatal Wounds", 240, SpellType.PHYSICAL);
 export class ExtraAttack extends Spell {
     constructor(name, count) {
-        super(name, false, 0, 0, (player, time) => {
+        super(name, SpellType.NONE, false, 0, 0, (player, time) => {
             if (player.extraAttackCount) {
                 return;
             }
@@ -95,7 +97,7 @@ export class ExtraAttack extends Spell {
 }
 export class SpellBuff extends Spell {
     constructor(buff, is_gcd, cost, cooldown) {
-        super(`SpellBuff(${buff.name})`, !!is_gcd, cost || 0, cooldown || 0, (player, time) => {
+        super(`SpellBuff(${buff.name})`, SpellType.BUFF, !!is_gcd, cost || 0, cooldown || 0, (player, time) => {
             player.buffManager.add(buff, time);
         });
     }

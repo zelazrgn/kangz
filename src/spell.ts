@@ -4,13 +4,15 @@ import { WeaponDescription } from "./item.js";
 
 export class Spell {
     name: string;
+    type: SpellType;
     is_gcd: boolean;
     cost: number;
     cooldown: number;
     protected spellF: (player: Player, time: number) => void;
 
-    constructor(name: string, is_gcd: boolean, cost: number, cooldown: number, spellF: (player: Player, time: number) => void) {
+    constructor(name: string, type: SpellType, is_gcd: boolean, cost: number, cooldown: number, spellF: (player: Player, time: number) => void) {
         this.name = name;
+        this.type = type;
         this.cost = cost;
         this.cooldown = cooldown;
         this.is_gcd = is_gcd;
@@ -79,7 +81,7 @@ export class SwingSpell extends Spell {
     bonusDamage: number;
 
     constructor(name: string, bonusDamage: number, cost: number) {
-        super(name, false, cost, 0, () => {});
+        super(name, SpellType.PHYSICAL_WEAPON, false, cost, 0, () => {});
         this.bonusDamage = bonusDamage;
     }
 }
@@ -94,19 +96,20 @@ export class LearnedSwingSpell extends LearnedSpell {
 }
 
 export enum SpellType {
+    NONE,
+    BUFF,
     PHYSICAL,
-    PHYSICAL_WEAPON
+    PHYSICAL_WEAPON,
 }
 
 export class SpellDamage extends Spell {
     constructor(name: string, amount: number|((player: Player) => number), type: SpellType, is_gcd: boolean, cost: number, cooldown: number) {
-        super(name, is_gcd, cost, cooldown, (player: Player, time: number) => {
+        super(name, type, is_gcd, cost, cooldown, (player: Player, time: number) => {
             const dmg = (typeof amount === "number") ? amount : amount(player);
             
             if (type === SpellType.PHYSICAL || type === SpellType.PHYSICAL_WEAPON) {
                 // TODO - do procs like fatal wounds (vis'kag) account for weapon skill?
-                const ignore_weapon_skill = type === SpellType.PHYSICAL;
-                player.dealMeleeDamage(time, dmg, player.target!, true, this, ignore_weapon_skill);
+                player.dealMeleeDamage(time, dmg, player.target!, true, this);
             }
         });
     }
@@ -122,7 +125,8 @@ const fatalWounds = new SpellDamage2("Fatal Wounds", 240, SpellType.PHYSICAL);
 
 export class ExtraAttack extends Spell {
     constructor(name: string, count: number) {
-        super(name, false, 0, 0, (player: Player, time: number) => {
+        // spelltype doesn't matter
+        super(name, SpellType.NONE, false, 0, 0, (player: Player, time: number) => {
             if (player.extraAttackCount) {
                 return;
             }
@@ -134,7 +138,7 @@ export class ExtraAttack extends Spell {
 
 export class SpellBuff extends Spell {
     constructor(buff: Buff, is_gcd?: boolean, cost?: number, cooldown?: number) {
-        super(`SpellBuff(${buff.name})`, !!is_gcd, cost || 0, cooldown || 0, (player: Player, time: number) => {
+        super(`SpellBuff(${buff.name})`, SpellType.BUFF, !!is_gcd, cost || 0, cooldown || 0, (player: Player, time: number) => {
             player.buffManager.add(buff, time);
         });
     }

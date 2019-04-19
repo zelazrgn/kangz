@@ -1,9 +1,9 @@
 import { WeaponEquiped, WeaponType, ItemDescription, ItemEquiped, ItemSlot, isEquipedWeapon, isWeapon } from "./item.js";
 import { Unit } from "./unit.js";
-import { urand, clamp } from "./math.js";
+import { urand, clamp, frand } from "./math.js";
 import { BuffManager } from "./buff.js";
 import { StatValues, Stats } from "./stats.js";
-import { Spell, Proc, LearnedSwingSpell } from "./spell.js";
+import { Spell, Proc, LearnedSwingSpell, SpellType } from "./spell.js";
 
 export enum Race {
     HUMAN,
@@ -125,8 +125,8 @@ export class Player extends Unit {
         });
     }
 
-    protected calculateWeaponSkillValue(is_mh: boolean, ignore_weapon_skill = false) {
-        if (ignore_weapon_skill) {
+    protected calculateWeaponSkillValue(is_mh: boolean, spell?: Spell) {
+        if (spell && spell.type == SpellType.PHYSICAL) {
             return this.maxSkillForLevel;
         }
 
@@ -177,15 +177,15 @@ export class Player extends Unit {
         return crit;
     }
 
-    protected calculateMissChance(victim: Unit, is_mh: boolean, is_spell: boolean, ignore_weapon_skill = false) {
+    protected calculateMissChance(victim: Unit, is_mh: boolean, spell?: Spell) {
         let res = 5;
         res -= this.buffManager.stats.hit;
 
-        if (this.oh && !is_spell) {
+        if (this.oh && !spell) {
             res += 19;
         }
         
-        const skillDiff = this.calculateWeaponSkillValue(is_mh, ignore_weapon_skill) - victim.defenseSkill;
+        const skillDiff = this.calculateWeaponSkillValue(is_mh, spell) - victim.defenseSkill;
 
         if (skillDiff < -10) {
             res -= (skillDiff + 10) * 0.4 - 2;
@@ -212,34 +212,35 @@ export class Player extends Unit {
         return 0;
     }
 
-    protected calculateMinMaxDamage(is_mh: boolean): [number, number] {
-        // TODO - Very simple version atm
+    protected calculateSwingMinMaxDamage(is_mh: boolean): [number, number] {
         const weapon = is_mh ? this.mh! : this.oh!;
 
         const ap_bonus = this.ap / 14 * weapon.weapon.speed;
 
+        const ohPenalty = is_mh ? 1 : 0.625; // TODO - check talents, implemented as an aura SPELL_AURA_MOD_OFFHAND_DAMAGE_PCT
+
         return [
-            Math.trunc(weapon.min + ap_bonus),
-            Math.trunc(weapon.max + ap_bonus)
+            (weapon.min + ap_bonus) * ohPenalty,
+            (weapon.max + ap_bonus) * ohPenalty
         ];
     }
 
-    calculateRawDamage(is_mh: boolean) {
-        return urand(...this.calculateMinMaxDamage(is_mh));
+    calculateSwingRawDamage(is_mh: boolean) {
+        return frand(...this.calculateSwingMinMaxDamage(is_mh));
     }
 
-    rollMeleeHitOutcome(victim: Unit, is_mh: boolean, is_spell: boolean, ignore_weapon_skill = false): MeleeHitOutcome {
+    rollMeleeHitOutcome(victim: Unit, is_mh: boolean, spell?: Spell): MeleeHitOutcome {
         const roll = urand(0, 10000);
         let sum = 0;
         let tmp = 0;
 
         // rounding instead of truncating because 19.4 * 100 was truncating to 1939.
-        const miss_chance = Math.round(this.calculateMissChance(victim, is_mh, is_spell, ignore_weapon_skill) * 100);
+        const miss_chance = Math.round(this.calculateMissChance(victim, is_mh, spell) * 100);
         const dodge_chance = Math.round(victim.dodgeChance * 100);
         const crit_chance = Math.round(this.calculateCritChance() * 100);
 
         // weapon skill - target defense (usually negative)
-        const skillBonus = 4 * (this.calculateWeaponSkillValue(is_mh, ignore_weapon_skill) - victim.maxSkillForLevel);
+        const skillBonus = 4 * (this.calculateWeaponSkillValue(is_mh, spell) - victim.maxSkillForLevel);
 
         tmp = miss_chance;
 
@@ -253,7 +254,7 @@ export class Player extends Unit {
             return MeleeHitOutcome.MELEE_HIT_DODGE;
         }
 
-        if (!is_spell) { // spells can't glance
+        if (!spell) { // spells can't glance
             tmp = (10 + (victim.defenseSkill - 300) * 2) * 100;
             tmp = clamp(tmp, 0, 4000);
     
@@ -271,10 +272,18 @@ export class Player extends Unit {
         return MeleeHitOutcome.MELEE_HIT_NORMAL;
     }
 
-    calculateMeleeDamage(rawDamage: number, victim: Unit, is_mh: boolean, is_spell: boolean, ignore_weapon_skill = false): [number, MeleeHitOutcome, number] {
-        const armorReduced = victim.calculateArmorReducedDamage(rawDamage, this);
+    calculateBonusDamage(rawDamage: number, victim: Unit, spell?: Spell) {
+        let damageWithBonus = rawDamage;
 
-        const hitOutcome = this.rollMeleeHitOutcome(victim, is_mh, is_spell, ignore_weapon_skill);
+        damageWithBonus *= this.buffManager.stats.damageMult;
+
+        return damageWithBonus;
+    }
+
+    calculateMeleeDamage(rawDamage: number, victim: Unit, is_mh: boolean, spell?: Spell): [number, MeleeHitOutcome, number] {
+        const damageWithBonus = this.calculateBonusDamage(rawDamage, victim, spell);
+        const armorReduced = victim.calculateArmorReducedDamage(damageWithBonus, this);
+        const hitOutcome = this.rollMeleeHitOutcome(victim, is_mh, spell);
 
         let damage = armorReduced;
         let cleanDamage = 0;
@@ -286,9 +295,10 @@ export class Player extends Unit {
                 break;
             }
             case MeleeHitOutcome.MELEE_HIT_DODGE:
+            case MeleeHitOutcome.MELEE_HIT_PARRY:
             {
                 damage = 0;
-                cleanDamage = rawDamage;
+                cleanDamage = damageWithBonus;
                 break;
             }
             case MeleeHitOutcome.MELEE_HIT_GLANCING:
@@ -308,10 +318,6 @@ export class Player extends Unit {
             }
         }
 
-        if (!is_mh) {
-            damage *= 0.625; // TODO - check talents, should be in warrior class
-        }
-
         return [damage, hitOutcome, cleanDamage];
     }
 
@@ -329,9 +335,9 @@ export class Player extends Unit {
         }
     }
 
-    dealMeleeDamage(time: number, rawDamage: number, target: Unit, is_mh: boolean, spell?: Spell, ignore_weapon_skill = false) {
-        let [damageDone, hitOutcome, cleanDamage] = this.calculateMeleeDamage(rawDamage, target, is_mh, spell !== undefined, ignore_weapon_skill);
-        damageDone = Math.trunc(damageDone * this.buffManager.stats.damageMult); // truncating here because warrior subclass builds on top of calculateMeleeDamage
+    dealMeleeDamage(time: number, rawDamage: number, target: Unit, is_mh: boolean, spell?: Spell) {
+        let [damageDone, hitOutcome, cleanDamage] = this.calculateMeleeDamage(rawDamage, target, is_mh, spell);
+        damageDone = Math.trunc(damageDone); // truncating here because warrior subclass builds on top of calculateMeleeDamage
         cleanDamage = Math.trunc(cleanDamage); // TODO, should damageMult affect clean damage as well? if so move it into calculateMeleeDamage
 
         this.damageDone += damageDone;
@@ -349,10 +355,10 @@ export class Player extends Unit {
     }
 
     protected swingWeapon(time: number, target: Unit, is_mh: boolean) {
-        const rawDamage = this.calculateRawDamage(is_mh);
+        const rawDamage = this.calculateSwingRawDamage(is_mh);
         
         if (!this.doingExtraAttacks && is_mh && this.queuedSpell && this.queuedSpell.canCast(time)) {
-            this.queuedSpell.cast(time); // handle spell cost
+            this.queuedSpell.cast(time);
             const swingSpell = this.queuedSpell.spell;
             this.queuedSpell = undefined;
             const bonusDamage = swingSpell.bonusDamage;

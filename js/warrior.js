@@ -33,9 +33,9 @@ export class Warrior extends Player {
     calculateCritChance() {
         return 5 + 3 + super.calculateCritChance();
     }
-    calculateMeleeDamage(rawDamage, victim, is_mh, is_spell, ignore_weapon_skill = false) {
-        let [damageDone, hitOutcome, cleanDamage] = super.calculateMeleeDamage(rawDamage, victim, is_mh, is_spell, ignore_weapon_skill);
-        if (hitOutcome === MeleeHitOutcome.MELEE_HIT_CRIT && is_spell) {
+    calculateMeleeDamage(rawDamage, victim, is_mh, spell) {
+        let [damageDone, hitOutcome, cleanDamage] = super.calculateMeleeDamage(rawDamage, victim, is_mh, spell);
+        if (hitOutcome === MeleeHitOutcome.MELEE_HIT_CRIT && spell) {
             damageDone *= 1.1;
         }
         return [damageDone, hitOutcome, cleanDamage];
@@ -87,7 +87,7 @@ const bloodthirstSpell = new SpellDamage("Bloodthirst", (player) => {
     return player.ap * 0.45;
 }, SpellType.PHYSICAL, true, 30, 6);
 const whirlwindSpell = new SpellDamage("Whirlwind", (player) => {
-    return player.calculateRawDamage(true);
+    return player.calculateSwingRawDamage(true);
 }, SpellType.PHYSICAL_WEAPON, true, 25, 10);
 const hamstringSpell = new SpellDamage("Hamstring", 45, SpellType.PHYSICAL_WEAPON, true, 10, 0);
 export const angerManagementOT = new BuffOverTime("Anger Management", Number.MAX_SAFE_INTEGER, undefined, 3000, (player, time) => {
@@ -100,7 +100,7 @@ const bloodRageOT = new BuffOverTime("Bloodrage", 10, undefined, 1000, (player, 
     if (player.log)
         player.log(time, `You gained 1 rage from Bloodrage`);
 });
-const bloodRage = new Spell("Bloodrage", false, 0, 60, (player, time) => {
+const bloodRage = new Spell("Bloodrage", SpellType.NONE, false, 0, 60, (player, time) => {
     player.power += 10;
     if (player.log)
         player.log(time, `You gain 10 rage from Bloodrage`);
