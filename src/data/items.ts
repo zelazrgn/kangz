@@ -1,5 +1,5 @@
 import { WeaponType, WeaponDescription, ItemSlot, ItemDescription } from "../item.js";
-import { SpellBuff, ExtraAttack, Proc, Spell } from "../spell.js";
+import { SpellBuff, ExtraAttack, Proc, SpellType, ItemSpellDamage } from "../spell.js";
 import { Buff, BuffProc } from "../buff.js";
 
 // TODO - how to implement set bonuses? probably easiest to add bonus that requires a string search of other equiped items
@@ -168,6 +168,15 @@ export const items: (ItemDescription|WeaponDescription)[] = [
         stats: {ap: 30, crit: 1, str: 5}
     },
     {
+        name: "Vis'kag the Bloodletter",
+        type: WeaponType.SWORD,
+        slot: ItemSlot.MAINHAND|ItemSlot.OFFHAND,
+        min: 100,
+        max: 187,
+        speed: 2.6,
+        onhit: new Proc(new ItemSpellDamage("Fatal Wounds", 240, SpellType.PHYSICAL),{ppm: 1.3})
+    },
+    {
         name: "Chromatically Tempered Sword",
         type: WeaponType.SWORD,
         slot: ItemSlot.MAINHAND|ItemSlot.OFFHAND,
@@ -238,6 +247,14 @@ export const items: (ItemDescription|WeaponDescription)[] = [
         max: 188,
         speed: 2.30,
         stats: { ap: 36 }
+    },
+    {
+        name: "Deathbringer (W/O PROC)", // TODO
+        type: WeaponType.AXE,
+        slot: ItemSlot.MAINHAND|ItemSlot.OFFHAND,
+        min: 114,
+        max: 213,
+        speed: 2.90
     },
     {
         name: "Badge of the Swarmguard",

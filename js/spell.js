@@ -1,7 +1,14 @@
+export var SpellFamily;
+(function (SpellFamily) {
+    SpellFamily[SpellFamily["NONE"] = 0] = "NONE";
+    SpellFamily[SpellFamily["WARRIOR"] = 1] = "WARRIOR";
+})(SpellFamily || (SpellFamily = {}));
 export class Spell {
-    constructor(name, type, is_gcd, cost, cooldown, spellF) {
+    constructor(name, type, family, is_gcd, cost, cooldown, spellF) {
+        this.canProc = true;
         this.name = name;
         this.type = type;
+        this.family = family;
         this.cost = cost;
         this.cooldown = cooldown;
         this.is_gcd = is_gcd;
@@ -49,8 +56,8 @@ export class LearnedSpell {
     }
 }
 export class SwingSpell extends Spell {
-    constructor(name, bonusDamage, cost) {
-        super(name, SpellType.PHYSICAL_WEAPON, false, cost, 0, () => { });
+    constructor(name, family, bonusDamage, cost) {
+        super(name, SpellType.PHYSICAL_WEAPON, family, false, cost, 0, () => { });
         this.bonusDamage = bonusDamage;
     }
 }
@@ -68,8 +75,8 @@ export var SpellType;
     SpellType[SpellType["PHYSICAL_WEAPON"] = 3] = "PHYSICAL_WEAPON";
 })(SpellType || (SpellType = {}));
 export class SpellDamage extends Spell {
-    constructor(name, amount, type, is_gcd = false, cost = 0, cooldown = 0, callback) {
-        super(name, type, is_gcd, cost, cooldown, (player, time) => {
+    constructor(name, amount, type, family, is_gcd = false, cost = 0, cooldown = 0, callback) {
+        super(name, type, family, is_gcd, cost, cooldown, (player, time) => {
             const dmg = (typeof amount === "number") ? amount : amount(player);
             if (type === SpellType.PHYSICAL || type === SpellType.PHYSICAL_WEAPON) {
                 player.dealMeleeDamage(time, dmg, player.target, true, this);
@@ -78,15 +85,15 @@ export class SpellDamage extends Spell {
         this.callback = callback;
     }
 }
-export class SpellDamage2 extends SpellDamage {
+export class ItemSpellDamage extends SpellDamage {
     constructor(name, amount, type) {
-        super(name, amount, type, false, 0, 0);
+        super(name, amount, type, SpellFamily.NONE);
+        this.canProc = false;
     }
 }
-const fatalWounds = new SpellDamage2("Fatal Wounds", 240, SpellType.PHYSICAL);
 export class ExtraAttack extends Spell {
     constructor(name, count) {
-        super(name, SpellType.NONE, false, 0, 0, (player, time) => {
+        super(name, SpellType.NONE, SpellFamily.NONE, false, 0, 0, (player, time) => {
             if (player.extraAttackCount) {
                 return;
             }
@@ -98,7 +105,7 @@ export class ExtraAttack extends Spell {
 }
 export class SpellBuff extends Spell {
     constructor(buff, is_gcd, cost, cooldown) {
-        super(`SpellBuff(${buff.name})`, SpellType.BUFF, !!is_gcd, cost || 0, cooldown || 0, (player, time) => {
+        super(`SpellBuff(${buff.name})`, SpellType.BUFF, SpellFamily.NONE, !!is_gcd, cost || 0, cooldown || 0, (player, time) => {
             player.buffManager.add(buff, time);
         });
     }

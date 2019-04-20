@@ -2,17 +2,26 @@ import { Player, MeleeHitOutcome } from "./player.js";
 import { Buff } from "./buff.js";
 import { WeaponDescription } from "./item.js";
 
+export enum SpellFamily {
+    NONE,
+    WARRIOR,
+}
+
 export class Spell {
     name: string;
     type: SpellType;
+    family: SpellFamily;
     is_gcd: boolean;
     cost: number;
     cooldown: number;
     protected spellF: (player: Player, time: number) => void;
 
-    constructor(name: string, type: SpellType, is_gcd: boolean, cost: number, cooldown: number, spellF: (player: Player, time: number) => void) {
+    canProc = true;
+
+    constructor(name: string, type: SpellType, family: SpellFamily, is_gcd: boolean, cost: number, cooldown: number, spellF: (player: Player, time: number) => void) {
         this.name = name;
         this.type = type;
+        this.family = family;
         this.cost = cost;
         this.cooldown = cooldown;
         this.is_gcd = is_gcd;
@@ -80,8 +89,8 @@ export class LearnedSpell {
 export class SwingSpell extends Spell {
     bonusDamage: number;
 
-    constructor(name: string, bonusDamage: number, cost: number) {
-        super(name, SpellType.PHYSICAL_WEAPON, false, cost, 0, () => {});
+    constructor(name: string, family: SpellFamily, bonusDamage: number, cost: number) {
+        super(name, SpellType.PHYSICAL_WEAPON, family, false, cost, 0, () => {});
         this.bonusDamage = bonusDamage;
     }
 }
@@ -107,12 +116,11 @@ export type SpellHitOutcomeCallback = (player: Player, hitOutcome: MeleeHitOutco
 export class SpellDamage extends Spell {
     callback?: SpellHitOutcomeCallback;
 
-    constructor(name: string, amount: number|((player: Player) => number), type: SpellType, is_gcd = false, cost = 0, cooldown = 0, callback?: SpellHitOutcomeCallback) {
-        super(name, type, is_gcd, cost, cooldown, (player: Player, time: number) => {
+    constructor(name: string, amount: number|((player: Player) => number), type: SpellType, family: SpellFamily, is_gcd = false, cost = 0, cooldown = 0, callback?: SpellHitOutcomeCallback) {
+        super(name, type, family, is_gcd, cost, cooldown, (player: Player, time: number) => {
             const dmg = (typeof amount === "number") ? amount : amount(player);
             
             if (type === SpellType.PHYSICAL || type === SpellType.PHYSICAL_WEAPON) {
-                // TODO - do procs like fatal wounds (vis'kag) account for weapon skill?
                 player.dealMeleeDamage(time, dmg, player.target!, true, this);
             }
         });
@@ -121,18 +129,18 @@ export class SpellDamage extends Spell {
     }
 }
 
-export class SpellDamage2 extends SpellDamage {
-    constructor(name: string, amount: number, type: SpellType) {
-        super(name, amount, type, false, 0, 0);
+export class ItemSpellDamage extends SpellDamage {
+    canProc = false; // TODO - confirm this is blizzlike, also some item procs may be able to proc but on LH core, fatal wound can't
+
+    constructor(name: string, amount: number|((player: Player) => number), type: SpellType) {
+        super(name, amount, type, SpellFamily.NONE);
     }
 }
-
-const fatalWounds = new SpellDamage2("Fatal Wounds", 240, SpellType.PHYSICAL);
 
 export class ExtraAttack extends Spell {
     constructor(name: string, count: number) {
         // spelltype doesn't matter
-        super(name, SpellType.NONE, false, 0, 0, (player: Player, time: number) => {
+        super(name, SpellType.NONE, SpellFamily.NONE, false, 0, 0, (player: Player, time: number) => {
             if (player.extraAttackCount) {
                 return;
             }
@@ -144,7 +152,7 @@ export class ExtraAttack extends Spell {
 
 export class SpellBuff extends Spell {
     constructor(buff: Buff, is_gcd?: boolean, cost?: number, cooldown?: number) {
-        super(`SpellBuff(${buff.name})`, SpellType.BUFF, !!is_gcd, cost || 0, cooldown || 0, (player: Player, time: number) => {
+        super(`SpellBuff(${buff.name})`, SpellType.BUFF, SpellFamily.NONE, !!is_gcd, cost || 0, cooldown || 0, (player: Player, time: number) => {
             player.buffManager.add(buff, time);
         });
     }

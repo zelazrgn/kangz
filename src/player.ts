@@ -367,8 +367,10 @@ export class Player extends Unit {
             }
         }
 
-        this.updateProcs(time, is_mh, hitOutcome, damageDone, cleanDamage, spell);
-        this.buffManager.update(time);
+        if (!spell || spell.canProc) {
+            this.updateProcs(time, is_mh, hitOutcome, damageDone, cleanDamage, spell);
+            this.buffManager.update(time);
+        }
     }
 
     protected swingWeapon(time: number, target: Unit, is_mh: boolean) {

@@ -282,8 +282,10 @@ export class Player extends Unit {
                 spell.callback(this, hitOutcome);
             }
         }
-        this.updateProcs(time, is_mh, hitOutcome, damageDone, cleanDamage, spell);
-        this.buffManager.update(time);
+        if (!spell || spell.canProc) {
+            this.updateProcs(time, is_mh, hitOutcome, damageDone, cleanDamage, spell);
+            this.buffManager.update(time);
+        }
     }
     swingWeapon(time, target, is_mh) {
         const rawDamage = this.calculateSwingRawDamage(is_mh);

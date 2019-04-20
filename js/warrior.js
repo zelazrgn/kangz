@@ -1,6 +1,6 @@
 import { Player, MeleeHitOutcome, Race } from "./player.js";
 import { Buff, BuffOverTime, BuffProc } from "./buff.js";
-import { Spell, LearnedSpell, SpellDamage, SpellType, SwingSpell, LearnedSwingSpell, Proc, SpellBuff } from "./spell.js";
+import { Spell, LearnedSpell, SpellDamage, SpellType, SwingSpell, LearnedSwingSpell, Proc, SpellBuff, SpellFamily } from "./spell.js";
 import { clamp } from "./math.js";
 import { Stats } from "./stats.js";
 const flurry = new Buff("Flurry", 15, { haste: 1.3 }, true, 3, undefined, undefined, false);
@@ -37,7 +37,7 @@ export class Warrior extends Player {
     }
     calculateMeleeDamage(rawDamage, victim, is_mh, spell) {
         let [damageDone, hitOutcome, cleanDamage] = super.calculateMeleeDamage(rawDamage, victim, is_mh, spell);
-        if (hitOutcome === MeleeHitOutcome.MELEE_HIT_CRIT && spell) {
+        if (hitOutcome === MeleeHitOutcome.MELEE_HIT_CRIT && spell && spell.family === SpellFamily.WARRIOR) {
             damageDone *= 1.1;
         }
         return [damageDone, hitOutcome, cleanDamage];
@@ -81,21 +81,21 @@ export class Warrior extends Player {
         }
     }
 }
-const heroicStrikeSpell = new SwingSpell("Heroic Strike", 157, 12);
+const heroicStrikeSpell = new SwingSpell("Heroic Strike", SpellFamily.WARRIOR, 157, 12);
 const executeSpell = new SpellDamage("Execute", (player) => {
     return 600 + (player.power - 10) * 15;
-}, SpellType.PHYSICAL_WEAPON, true, 10, 0, (player, hitOutcome) => {
+}, SpellType.PHYSICAL_WEAPON, SpellFamily.WARRIOR, true, 10, 0, (player, hitOutcome) => {
     if (![MeleeHitOutcome.MELEE_HIT_PARRY, MeleeHitOutcome.MELEE_HIT_DODGE, MeleeHitOutcome.MELEE_HIT_MISS].includes(hitOutcome)) {
         player.power = 0;
     }
 });
 const bloodthirstSpell = new SpellDamage("Bloodthirst", (player) => {
     return player.ap * 0.45;
-}, SpellType.PHYSICAL, true, 30, 6);
+}, SpellType.PHYSICAL, SpellFamily.WARRIOR, true, 30, 6);
 const whirlwindSpell = new SpellDamage("Whirlwind", (player) => {
     return player.calculateSwingRawDamage(true);
-}, SpellType.PHYSICAL_WEAPON, true, 25, 10);
-const hamstringSpell = new SpellDamage("Hamstring", 45, SpellType.PHYSICAL_WEAPON, true, 10, 0);
+}, SpellType.PHYSICAL_WEAPON, SpellFamily.WARRIOR, true, 25, 10);
+const hamstringSpell = new SpellDamage("Hamstring", 45, SpellType.PHYSICAL_WEAPON, SpellFamily.WARRIOR, true, 10, 0);
 export const angerManagementOT = new BuffOverTime("Anger Management", Number.MAX_SAFE_INTEGER, undefined, 3000, (player, time) => {
     player.power += 1;
     if (player.log)
@@ -106,14 +106,14 @@ const bloodRageOT = new BuffOverTime("Bloodrage", 10, undefined, 1000, (player, 
     if (player.log)
         player.log(time, `You gained 1 rage from Bloodrage`);
 });
-const bloodRage = new Spell("Bloodrage", SpellType.NONE, false, 0, 60, (player, time) => {
+const bloodRage = new Spell("Bloodrage", SpellType.NONE, SpellFamily.WARRIOR, false, 0, 60, (player, time) => {
     player.power += 10;
     if (player.log)
         player.log(time, `You gain 10 rage from Bloodrage`);
     player.buffManager.add(bloodRageOT, time);
 });
 const deathWish = new SpellBuff(new Buff("Death Wish", 30, { damageMult: 1.2 }), true, 10, 3 * 60);
-const unbridledWrath = new BuffProc("Unbridled Wrath", 60 * 60, new Proc(new Spell("Unbridled Wrath", SpellType.NONE, false, 0, 0, (player, time) => {
+const unbridledWrath = new BuffProc("Unbridled Wrath", 60 * 60, new Proc(new Spell("Unbridled Wrath", SpellType.NONE, SpellFamily.WARRIOR, false, 0, 0, (player, time) => {
     if (player.log)
         player.log(time, `You gain 1 rage from Unbridled Wrath`);
     player.power += 1;
