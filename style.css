@@ -9,7 +9,7 @@ body {
     text-transform: capitalize;
 }
 
-#stats, #buffs, #ai_settings {
+#stats, #buffs, #ai_settings, #fight_settings {
     display: grid;
     grid-template-columns: min-content min-content;
     grid-column-gap: 10px;

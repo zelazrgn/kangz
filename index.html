@@ -4,6 +4,12 @@
     </head>
     <body>
         <div id="selectOptionsContainer">
+            <label for="realtime">Real-time</label>
+            <input type="checkbox" id="realtime" name="realtime">
+            <button id="startBtn" type="button">Start</button>
+
+            <div id="myStats"></div>
+
             <div id="items">
                 <label for="race">Race</label>
                 <select id="race" name="race"></select>
@@ -30,10 +36,10 @@
                 <label for="hamstringrr">Hamstring Rage Req.</label>
                 <input type="number" id="hamstringrr" name="hamstringrr" min="0" max="100" value="50">
             </div>
-            <div id="myStats"></div>
-            <label for="realtime">Real-time</label>
-            <input type="checkbox" id="realtime" name="realtime">
-            <button id="startBtn" type="button">Start</button>
+            <div id="fight_settings">
+                <label for="fightlength">Avg. Fight Length (seconds)</label>
+                <input type="number" id="fightlength" name="fightlength" min="0" value="60">
+            </div>
         </div>
         <div id="simsContainer"></div>
     </body>

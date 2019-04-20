@@ -13,7 +13,8 @@ const simsContainerEl = document.getElementById('simsContainer');
 const raceEl = document.getElementById('race');
 const buffsEl = document.getElementById('buffs');
 const heroicStrikeRageReqEl = document.getElementById('heroicstrikerr');
-const hamstringRageReq = document.getElementById('hamstringrr');
+const hamstringRageReqEl = document.getElementById('hamstringrr');
+const fightLengthEl = document.getElementById('fightlength');
 function getRace() {
     return parseInt(raceEl.value);
 }
@@ -269,10 +270,10 @@ function startSim() {
         stats: getStats(),
         equipment: getEquipmentIndices(),
         buffs: getBuffs(),
-        fightLength: 60,
+        fightLength: parseInt(fightLengthEl.value),
         realtime: realtime,
         heroicStrikeRageReq: parseInt(heroicStrikeRageReqEl.value),
-        hamstringRageReq: parseInt(hamstringRageReq.value),
+        hamstringRageReq: parseInt(hamstringRageReqEl.value),
     };
     worker.send('simulate', simdisc);
 }
