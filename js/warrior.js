@@ -1,6 +1,6 @@
 import { Player, MeleeHitOutcome, Race } from "./player.js";
-import { Buff, BuffOverTime } from "./buff.js";
-import { Spell, LearnedSpell, SpellDamage, SpellType, SwingSpell, LearnedSwingSpell, SpellBuff } from "./spell.js";
+import { Buff, BuffOverTime, BuffProc } from "./buff.js";
+import { Spell, LearnedSpell, SpellDamage, SpellType, SwingSpell, LearnedSwingSpell, Proc, SpellBuff } from "./spell.js";
 import { clamp } from "./math.js";
 import { Stats } from "./stats.js";
 const flurry = new Buff("Flurry", 15, { haste: 1.3 }, true, 3, undefined, undefined, false);
@@ -19,6 +19,7 @@ export class Warrior extends Player {
         this.bloodRage = new LearnedSpell(bloodRage, this);
         this.deathWish = new LearnedSpell(deathWish, this);
         this.buffManager.add(angerManagementOT, Math.random() * -3000);
+        this.buffManager.add(unbridledWrath, 0);
     }
     get power() {
         return this.rage;
@@ -107,4 +108,9 @@ const bloodRage = new Spell("Bloodrage", SpellType.NONE, false, 0, 60, (player, 
     player.buffManager.add(bloodRageOT, time);
 });
 const deathWish = new SpellBuff(new Buff("Death Wish", 30, { damageMult: 1.2 }), true, 10, 3 * 60);
+const unbridledWrath = new BuffProc("Unbridled Wrath", 60 * 60, new Proc(new Spell("Unbridled Wrath", SpellType.NONE, false, 0, 0, (player, time) => {
+    if (player.log)
+        player.log(time, `You gain 1 rage from Unbridled Wrath`);
+    player.power += 1;
+}), { chance: 40 }));
 //# sourceMappingURL=warrior.js.map
