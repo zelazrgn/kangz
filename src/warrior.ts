@@ -12,7 +12,6 @@ raceToStats.set(Race.HUMAN, { maceSkill: 5, swordSkill: 5, mace2HSkill: 5, sword
 raceToStats.set(Race.ORC, { axeSkill: 5, axe2HSkill: 5, str: 123, agi: 77 });
 
 export class Warrior extends Player {
-    flurryCount = 0;
     rage = 80; // TODO - allow simulation to choose starting rage
 
     execute = new LearnedSpell(executeSpell, this);
@@ -107,8 +106,7 @@ export class Warrior extends Player {
             && ![MeleeHitOutcome.MELEE_HIT_MISS, MeleeHitOutcome.MELEE_HIT_DODGE].includes(hitOutcome)
             && hitOutcome !== MeleeHitOutcome.MELEE_HIT_CRIT
         ) { 
-            this.flurryCount = Math.max(0, this.flurryCount - 1);
-            // this.buffManager.remove(flurry, time);
+            this.buffManager.remove(flurry, time);
         }
         
         if (hitOutcome === MeleeHitOutcome.MELEE_HIT_CRIT) {

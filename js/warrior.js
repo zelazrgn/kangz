@@ -10,7 +10,6 @@ raceToStats.set(Race.ORC, { axeSkill: 5, axe2HSkill: 5, str: 123, agi: 77 });
 export class Warrior extends Player {
     constructor(race, stats, logCallback) {
         super(new Stats(raceToStats.get(race)).add(stats), logCallback);
-        this.flurryCount = 0;
         this.rage = 80;
         this.execute = new LearnedSpell(executeSpell, this);
         this.bloodthirst = new LearnedSpell(bloodthirstSpell, this);
@@ -73,7 +72,7 @@ export class Warrior extends Player {
             && !(spell || spell === heroicStrikeSpell)
             && ![MeleeHitOutcome.MELEE_HIT_MISS, MeleeHitOutcome.MELEE_HIT_DODGE].includes(hitOutcome)
             && hitOutcome !== MeleeHitOutcome.MELEE_HIT_CRIT) {
-            this.flurryCount = Math.max(0, this.flurryCount - 1);
+            this.buffManager.remove(flurry, time);
         }
         if (hitOutcome === MeleeHitOutcome.MELEE_HIT_CRIT) {
             this.buffManager.add(flurry, time);
