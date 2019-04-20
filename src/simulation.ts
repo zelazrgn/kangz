@@ -1,19 +1,21 @@
 import { StatValues, Stats } from "./stats.js";
 import { ItemDescription, ItemSlot } from "./item.js";
 import { Buff } from "./buff.js";
-import { LogFunction, Player, Race } from "./player.js";
+import { LogFunction, Player, Race, DamageLog } from "./player.js";
 import { setupPlayer } from "./simulation_utils.js";
 
 export type ItemWithSlot = [ItemDescription, ItemSlot];
 
 // TODO - change this interface so that ChooseAction cannot screw up the sim or cheat
 // e.g. ChooseAction shouldn't cast spells at a current time
-export type ChooseAction = (player: Player, time: number, fightLength: number) => number|undefined;
+export type ChooseAction = (player: Player, time: number, fightLength: number, canExecute: boolean) => number|undefined;
+
+export const EXECUTE_PHASE_RATIO = 0.15; // last 15% of the time is execute phase
 
 class Fight {
     player: Player;
     chooseAction: ChooseAction;
-    protected fightLength: number;
+    fightLength: number;
     duration = 0;
 
     constructor(race: Race, stats: StatValues, equipment: ItemWithSlot[], buffs: Buff[], chooseAction: ChooseAction, fightLength = 60, log?: LogFunction) {
@@ -29,7 +31,7 @@ class Fight {
             }
 
             f({
-                damageDone: this.player.damageDone,
+                damageLog: this.player.damageLog,
                 fightLength: this.fightLength,
                 powerLost: this.player.powerLost
             });
@@ -41,13 +43,16 @@ class Fight {
     cancel() {}
 
     protected update() {
+        const beginExecuteTime = this.fightLength * (1 - EXECUTE_PHASE_RATIO);
+        const isExecutePhase = this.duration >= beginExecuteTime;
+
         this.player.buffManager.update(this.duration); // need to call this if the duration changed because of buffs that change over time like jom gabber
 
-        this.chooseAction(this.player, this.duration, this.fightLength); // choose action before in case of action depending on time off the gcd like earthstrike 
+        this.chooseAction(this.player, this.duration, this.fightLength, isExecutePhase); // choose action before in case of action depending on time off the gcd like earthstrike
 
         this.player.updateAttackingState(this.duration);
         // choose action after every swing which could be a rage generating event, but TODO: need to account for latency, reaction time (button mashing)
-        const waitingForTime = this.chooseAction(this.player, this.duration, this.fightLength);
+        const waitingForTime = this.chooseAction(this.player, this.duration, this.fightLength, isExecutePhase);
 
         let nextSwingTime = this.player.mh!.nextSwingTime;
 
@@ -66,6 +71,10 @@ class Fight {
 
         if (waitingForTime && waitingForTime < this.duration) {
             this.duration = waitingForTime;
+        }
+
+        if (!isExecutePhase && beginExecuteTime < this.duration) { // not execute at start of update
+            this.duration = beginExecuteTime;
         }
     }
 }
@@ -87,7 +96,7 @@ class RealtimeFight extends Fight {
                     requestAnimationFrame(loop);
                 } else {
                     f({
-                        damageDone: this.player.damageDone,
+                        damageLog: this.player.damageLog,
                         fightLength: this.fightLength,
                         powerLost: this.player.powerLost
                     });
@@ -102,7 +111,7 @@ class RealtimeFight extends Fight {
     }
 }
 
-export type FightResult = { damageDone: number, fightLength: number, powerLost: number};
+export type FightResult = { damageLog: DamageLog, fightLength: number, powerLost: number};
 
 export class Simulation {
     race: Race;
@@ -133,29 +142,54 @@ export class Simulation {
     }
 
     get status() {
-        const combinedFightResults = this.fightResults.reduce((acc: FightResult, current) => {
-            return {
-                damageDone: acc.damageDone + current.damageDone,
-                fightLength: acc.fightLength + current.fightLength,
-                powerLost: acc.powerLost + current.powerLost,
+        let normalDamage = 0;
+        let execDamage = 0;
+        let normalDuration = 0;
+        let execDuration = 0;
+
+        let powerLost = 0;
+
+        for (let fightResult of this.fightResults) {
+            const beginExecuteTime = fightResult.fightLength * (1 - EXECUTE_PHASE_RATIO);
+
+            for (let [time, damage] of fightResult.damageLog) {
+                if (time >= beginExecuteTime) {
+                    execDamage += damage;
+                } else {
+                    normalDamage += damage;
+                }
             }
-        }, {
-            damageDone: 0,
-            fightLength: 0,
-            powerLost: 0
-        });
+
+            normalDuration += beginExecuteTime;
+            execDuration += fightResult.fightLength - beginExecuteTime;
+            powerLost += fightResult.powerLost;
+        }
 
         if (this.realtime && this.currentFight) {
-            combinedFightResults.damageDone += this.currentFight.player.damageDone;
-            combinedFightResults.fightLength += this.currentFight.duration;
-            combinedFightResults.powerLost += this.currentFight.player.powerLost;
+            const beginExecuteTime = this.currentFight.fightLength * (1 - EXECUTE_PHASE_RATIO);
+
+            for (let [time, damage] of this.currentFight.player.damageLog) {
+                if (time >= beginExecuteTime) {
+                    execDamage += damage;
+                } else {
+                    normalDamage += damage;
+                }
+            }
+
+            normalDuration += Math.min(beginExecuteTime, this.currentFight.duration);
+            execDuration += Math.max(0, this.currentFight.duration - beginExecuteTime);
+            powerLost += this.currentFight.player.powerLost;
         }
 
         return {
-            damageDone: combinedFightResults.damageDone,
-            duration: combinedFightResults.fightLength,
+            totalDamage: normalDamage + execDamage,
+            normalDamage: normalDamage,
+            execDamage: execDamage,
+            duration: normalDuration + execDuration,
+            normalDuration: normalDuration,
+            execDuration: execDuration,
+            powerLost: powerLost,
             fights: this.fightResults.length,
-            powerLost: combinedFightResults.powerLost,
         }
     }
 

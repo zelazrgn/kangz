@@ -68,13 +68,14 @@ export var SpellType;
     SpellType[SpellType["PHYSICAL_WEAPON"] = 3] = "PHYSICAL_WEAPON";
 })(SpellType || (SpellType = {}));
 export class SpellDamage extends Spell {
-    constructor(name, amount, type, is_gcd, cost, cooldown) {
+    constructor(name, amount, type, is_gcd = false, cost = 0, cooldown = 0, callback) {
         super(name, type, is_gcd, cost, cooldown, (player, time) => {
             const dmg = (typeof amount === "number") ? amount : amount(player);
             if (type === SpellType.PHYSICAL || type === SpellType.PHYSICAL_WEAPON) {
                 player.dealMeleeDamage(time, dmg, player.target, true, this);
             }
         });
+        this.callback = callback;
     }
 }
 export class SpellDamage2 extends SpellDamage {

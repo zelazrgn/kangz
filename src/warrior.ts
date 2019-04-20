@@ -21,6 +21,7 @@ export class Warrior extends Player {
     heroicStrike = new LearnedSwingSpell(heroicStrikeSpell, this);
     bloodRage = new LearnedSpell(bloodRage, this);
     deathWish = new LearnedSpell(deathWish, this);
+    executeSpell = new LearnedSpell(executeSpell, this);
 
     constructor(race: Race, stats: StatValues, logCallback?: (time: number, text: string) => void) {
         super(new Stats(raceToStats.get(race)).add(stats), logCallback);
@@ -66,6 +67,7 @@ export class Warrior extends Player {
         // Rage Conversion at level 60: 230.6
         // TODO - how do fractions of rage work? it appears you do gain fractions based on exec damage
         // not truncating for now
+        // TODO - it appears that rage is calculated to tenths based on database values of spells (10 energy = 1 rage)
         
         const LEVEL_60_RAGE_CONV = 230.6;
         let addRage = damage / LEVEL_60_RAGE_CONV;
@@ -99,7 +101,7 @@ export class Warrior extends Player {
             this.rewardRage(damageDone, true, time);
         }
 
-        // instant attacks and misses/dodges don't use flurry charges // TODO - confirm
+        // instant attacks and misses/dodges don't use flurry charges // TODO - confirm, what about parry?
         // extra attacks don't use flurry charges but they can proc flurry (tested)
         if (
             !this.doingExtraAttacks
@@ -119,10 +121,16 @@ export class Warrior extends Player {
 
 const heroicStrikeSpell = new SwingSpell("Heroic Strike", 157, 12);
 
-// TODO - needs to wipe out all rage even though it only costs 10
+// execute actually works by casting two spells, first requires weapon but does no damage
+// second one doesn't require weapon and deals the damage.
+// LH core overrode the second spell to require weapon (benefit from weapon skill)
 const executeSpell = new SpellDamage("Execute", (player: Player) => {
-    return 600 + ((<Warrior>player).rage - 10);
-}, SpellType.PHYSICAL_WEAPON, true, 10, 0);
+    return 600 + (player.power - 10) * 15;
+}, SpellType.PHYSICAL_WEAPON, true, 10, 0, (player: Player, hitOutcome: MeleeHitOutcome) => {
+    if (![MeleeHitOutcome.MELEE_HIT_PARRY, MeleeHitOutcome.MELEE_HIT_DODGE, MeleeHitOutcome.MELEE_HIT_MISS].includes(hitOutcome)) {
+        player.power = 0;
+    }
+});
 
 const bloodthirstSpell = new SpellDamage("Bloodthirst", (player: Player) => {
     return (<Warrior>player).ap * 0.45;

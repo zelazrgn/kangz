@@ -1,6 +1,6 @@
 import { ItemSlot } from "./item";
 export function generateChooseAction(heroicStrikeRageReq, hamstringRageReq) {
-    return (player, time, fightLength) => {
+    return (player, time, fightLength, executePhase) => {
         const warrior = player;
         const timeRemainingSeconds = (fightLength - time) / 1000;
         const useItemByName = (slot, name) => {
@@ -18,6 +18,9 @@ export function generateChooseAction(heroicStrikeRageReq, hamstringRageReq) {
                 warrior.deathWish.cast(time);
                 useItemByName(ItemSlot.TRINKET1, "Badge of the Swarmguard");
                 useItemByName(ItemSlot.TRINKET2, "Badge of the Swarmguard");
+            }
+            else if (executePhase && warrior.execute.canCast(time)) {
+                warrior.execute.cast(time);
             }
             else if (warrior.bloodthirst.canCast(time)) {
                 warrior.bloodthirst.cast(time);

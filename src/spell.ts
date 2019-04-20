@@ -1,4 +1,4 @@
-import { Player } from "./player.js";
+import { Player, MeleeHitOutcome } from "./player.js";
 import { Buff } from "./buff.js";
 import { WeaponDescription } from "./item.js";
 
@@ -102,8 +102,12 @@ export enum SpellType {
     PHYSICAL_WEAPON,
 }
 
+export type SpellHitOutcomeCallback = (player: Player, hitOutcome: MeleeHitOutcome) => void;
+
 export class SpellDamage extends Spell {
-    constructor(name: string, amount: number|((player: Player) => number), type: SpellType, is_gcd: boolean, cost: number, cooldown: number) {
+    callback?: SpellHitOutcomeCallback;
+
+    constructor(name: string, amount: number|((player: Player) => number), type: SpellType, is_gcd = false, cost = 0, cooldown = 0, callback?: SpellHitOutcomeCallback) {
         super(name, type, is_gcd, cost, cooldown, (player: Player, time: number) => {
             const dmg = (typeof amount === "number") ? amount : amount(player);
             
@@ -112,6 +116,8 @@ export class SpellDamage extends Spell {
                 player.dealMeleeDamage(time, dmg, player.target!, true, this);
             }
         });
+
+        this.callback = callback;
     }
 }
 

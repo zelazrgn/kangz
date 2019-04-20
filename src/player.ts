@@ -3,7 +3,8 @@ import { Unit } from "./unit.js";
 import { urand, clamp, frand } from "./math.js";
 import { BuffManager } from "./buff.js";
 import { StatValues, Stats } from "./stats.js";
-import { Spell, Proc, LearnedSwingSpell, SpellType } from "./spell.js";
+import { Spell, Proc, LearnedSwingSpell, SpellType, SpellDamage } from "./spell.js";
+import { LH_CORE_BUG } from "./sim_settings.js";
 
 export enum Race {
     HUMAN,
@@ -42,6 +43,8 @@ const skillDiffToReduction = [1, 0.9926, 0.9840, 0.9742, 0.9629, 0.9500, 0.9351,
 
 export type LogFunction = (time: number, text: string) => void;
 
+export type DamageLog = [number, number][];
+
 export class Player extends Unit {
     items: Map<ItemSlot, ItemEquiped> = new Map();
     procs: Proc[] = [];
@@ -54,7 +57,7 @@ export class Player extends Unit {
 
     buffManager: BuffManager;
 
-    damageDone = 0;
+    damageLog: DamageLog = [];
 
     queuedSpell: LearnedSwingSpell|undefined = undefined;
 
@@ -267,7 +270,12 @@ export class Player extends Unit {
 
         tmp = crit_chance + skillBonus;
 
-        if (tmp > 0 && roll < (sum += crit_chance)) {
+        if (LH_CORE_BUG && spell && spell.type == SpellType.PHYSICAL) {
+            const overrideSkillBonusForCrit = 4 * (this.calculateWeaponSkillValue(is_mh, undefined) - victim.maxSkillForLevel);
+            tmp = crit_chance + overrideSkillBonusForCrit;
+        }
+
+        if (tmp > 0 && roll < (sum += tmp)) {
             return MeleeHitOutcome.MELEE_HIT_CRIT;
         }
 
@@ -324,16 +332,14 @@ export class Player extends Unit {
     }
 
     updateProcs(time: number, is_mh: boolean, hitOutcome: MeleeHitOutcome, damageDone: number, cleanDamage: number, spell?: Spell) {
-        if (![MeleeHitOutcome.MELEE_HIT_MISS, MeleeHitOutcome.MELEE_HIT_DODGE].includes(hitOutcome)) {
+        if (![MeleeHitOutcome.MELEE_HIT_MISS, MeleeHitOutcome.MELEE_HIT_DODGE, MeleeHitOutcome.MELEE_HIT_PARRY].includes(hitOutcome)) {
             // what is the order of checking for procs like hoj, ironfoe and windfury
             // on LH core it is hoj > ironfoe > windfury
-
             // so do item procs first, then weapon proc, then windfury
             for (let proc of this.procs) {
                 proc.run(this, (is_mh ? this.mh! : this.oh!).weapon, time);
             }
             (is_mh ? this.mh! : this.oh!).proc(time);
-            // TODO - implement windfury here, it should still add attack power even if there is already an extra attack
         }
     }
 
@@ -342,14 +348,23 @@ export class Player extends Unit {
         damageDone = Math.trunc(damageDone); // truncating here because warrior subclass builds on top of calculateMeleeDamage
         cleanDamage = Math.trunc(cleanDamage); // TODO, should damageMult affect clean damage as well? if so move it into calculateMeleeDamage
 
-        this.damageDone += damageDone;
+        this.damageLog.push([time, damageDone]);
         
         if (this.log) {
             let hitStr = `Your ${spell ? spell.name : (is_mh ? 'main-hand' : 'off-hand')} ${hitOutcomeString[hitOutcome]}`;
-            if (![MeleeHitOutcome.MELEE_HIT_MISS, MeleeHitOutcome.MELEE_HIT_DODGE].includes(hitOutcome)) {
+            if (![MeleeHitOutcome.MELEE_HIT_MISS, MeleeHitOutcome.MELEE_HIT_DODGE, MeleeHitOutcome.MELEE_HIT_PARRY].includes(hitOutcome)) {
                 hitStr += ` for ${damageDone}`;
             }
             this.log(time, hitStr);
+        }
+
+        if (spell instanceof SpellDamage) {
+            if (spell.callback) {
+                // calling this before update procs because in the case of execute, unbridled wrath could proc
+                // then setting the rage to 0 would cause us to lose the 1 rage from unbridled wrath
+                // alternative is to save the amount of rage used for the ability
+                spell.callback(this, hitOutcome);
+            }
         }
 
         this.updateProcs(time, is_mh, hitOutcome, damageDone, cleanDamage, spell);

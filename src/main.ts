@@ -239,9 +239,29 @@ function startSim() {
         simEl.remove();
     });
 
+    const simStatsEl = document.createElement('div');
+    simStatsEl.classList.add('simStats');
+    simEl.append(simStatsEl);
+
     const dpsEl = document.createElement('div');
     dpsEl.classList.add('dps');
-    simEl.append(dpsEl);
+    simStatsEl.append(dpsEl);
+
+    const timeEl = document.createElement('div');
+    timeEl.classList.add('time');
+    simStatsEl.append(timeEl);
+
+    const normalDPSEl = document.createElement('div');
+    normalDPSEl.classList.add('normalDPS');
+    simStatsEl.append(normalDPSEl);
+
+    const rlpmEl = document.createElement('div');
+    rlpmEl.classList.add('rlpm');
+    simStatsEl.append(rlpmEl);
+
+    const execDPSEl = document.createElement('div');
+    execDPSEl.classList.add('execDPS');
+    simStatsEl.append(execDPSEl);
 
     const chosenRaceEL = document.createElement('div');
     chosenRaceEL.classList.add('simDetail', 'chosenRace');
@@ -275,26 +295,25 @@ function startSim() {
     const worker = new WorkerInterface('./js/worker-bundle.js');
 
     worker.addEventListener('status', (status: any) => {
-        const dps = status.damageDone / status.duration * 1000;
+        const dps = status.totalDamage / status.duration * 1000;
+        const normalDPS = status.normalDamage / status.normalDuration * 1000;
+        const execDPS = status.execDamage / status.execDuration * 1000;
+
+        dpsEl.textContent = `${dps.toFixed(1)}`;
+        normalDPSEl.textContent = `${normalDPS.toFixed(1)}`;
+        execDPSEl.textContent = `${execDPS.toFixed(1)}`;
 
         const seconds = status.duration / 1000;
         const days = seconds / 60 / 60 / 24;
 
-        dpsEl.textContent = '';
-
-        const rlpm = status.powerLost / status.duration * 1000 * 60;
-
-        if (days >= 1) {
-            dpsEl.textContent += `Days: ${(days).toFixed(3)}`;
+        if (days >= 0.1) {
+            timeEl.textContent = `${(days).toFixed(3)} days`;
         } else {
-            dpsEl.textContent += `Seconds: ${(seconds).toFixed(3)}`;
+            timeEl.textContent = `${(seconds).toFixed(3)} seconds`;
         }
 
-        dpsEl.textContent += ` DPS: ${dps.toFixed(1)}`;
-
-
-        dpsEl.textContent += ` RPLM: ${rlpm.toFixed(1)}`;
-
+        const rlpm = status.powerLost / status.duration * 1000 * 60;
+        rlpmEl.textContent = `${rlpm.toFixed(1)}`;
     });
 
     if (realtime) {

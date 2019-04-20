@@ -18,6 +18,7 @@ export class Warrior extends Player {
         this.heroicStrike = new LearnedSwingSpell(heroicStrikeSpell, this);
         this.bloodRage = new LearnedSpell(bloodRage, this);
         this.deathWish = new LearnedSpell(deathWish, this);
+        this.executeSpell = new LearnedSpell(executeSpell, this);
         this.buffManager.add(angerManagementOT, Math.random() * -3000);
         this.buffManager.add(unbridledWrath, 0);
     }
@@ -82,8 +83,12 @@ export class Warrior extends Player {
 }
 const heroicStrikeSpell = new SwingSpell("Heroic Strike", 157, 12);
 const executeSpell = new SpellDamage("Execute", (player) => {
-    return 600 + (player.rage - 10);
-}, SpellType.PHYSICAL_WEAPON, true, 10, 0);
+    return 600 + (player.power - 10) * 15;
+}, SpellType.PHYSICAL_WEAPON, true, 10, 0, (player, hitOutcome) => {
+    if (![MeleeHitOutcome.MELEE_HIT_PARRY, MeleeHitOutcome.MELEE_HIT_DODGE, MeleeHitOutcome.MELEE_HIT_MISS].includes(hitOutcome)) {
+        player.power = 0;
+    }
+});
 const bloodthirstSpell = new SpellDamage("Bloodthirst", (player) => {
     return player.ap * 0.45;
 }, SpellType.PHYSICAL, true, 30, 6);

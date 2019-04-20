@@ -3,7 +3,8 @@ import { Unit } from "./unit.js";
 import { urand, clamp, frand } from "./math.js";
 import { BuffManager } from "./buff.js";
 import { Stats } from "./stats.js";
-import { SpellType } from "./spell.js";
+import { SpellType, SpellDamage } from "./spell.js";
+import { LH_CORE_BUG } from "./sim_settings.js";
 export var Race;
 (function (Race) {
     Race[Race["HUMAN"] = 0] = "HUMAN";
@@ -43,7 +44,7 @@ export class Player extends Unit {
         this.nextGCDTime = 0;
         this.extraAttackCount = 0;
         this.doingExtraAttacks = false;
-        this.damageDone = 0;
+        this.damageLog = [];
         this.queuedSpell = undefined;
         this.latency = 50;
         this.powerLost = 0;
@@ -205,7 +206,11 @@ export class Player extends Unit {
             }
         }
         tmp = crit_chance + skillBonus;
-        if (tmp > 0 && roll < (sum += crit_chance)) {
+        if (LH_CORE_BUG && spell && spell.type == SpellType.PHYSICAL) {
+            const overrideSkillBonusForCrit = 4 * (this.calculateWeaponSkillValue(is_mh, undefined) - victim.maxSkillForLevel);
+            tmp = crit_chance + overrideSkillBonusForCrit;
+        }
+        if (tmp > 0 && roll < (sum += tmp)) {
             return MeleeHitOutcome.MELEE_HIT_CRIT;
         }
         return MeleeHitOutcome.MELEE_HIT_NORMAL;
@@ -253,7 +258,7 @@ export class Player extends Unit {
         return [damage, hitOutcome, cleanDamage];
     }
     updateProcs(time, is_mh, hitOutcome, damageDone, cleanDamage, spell) {
-        if (![MeleeHitOutcome.MELEE_HIT_MISS, MeleeHitOutcome.MELEE_HIT_DODGE].includes(hitOutcome)) {
+        if (![MeleeHitOutcome.MELEE_HIT_MISS, MeleeHitOutcome.MELEE_HIT_DODGE, MeleeHitOutcome.MELEE_HIT_PARRY].includes(hitOutcome)) {
             for (let proc of this.procs) {
                 proc.run(this, (is_mh ? this.mh : this.oh).weapon, time);
             }
@@ -264,13 +269,18 @@ export class Player extends Unit {
         let [damageDone, hitOutcome, cleanDamage] = this.calculateMeleeDamage(rawDamage, target, is_mh, spell);
         damageDone = Math.trunc(damageDone);
         cleanDamage = Math.trunc(cleanDamage);
-        this.damageDone += damageDone;
+        this.damageLog.push([time, damageDone]);
         if (this.log) {
             let hitStr = `Your ${spell ? spell.name : (is_mh ? 'main-hand' : 'off-hand')} ${hitOutcomeString[hitOutcome]}`;
-            if (![MeleeHitOutcome.MELEE_HIT_MISS, MeleeHitOutcome.MELEE_HIT_DODGE].includes(hitOutcome)) {
+            if (![MeleeHitOutcome.MELEE_HIT_MISS, MeleeHitOutcome.MELEE_HIT_DODGE, MeleeHitOutcome.MELEE_HIT_PARRY].includes(hitOutcome)) {
                 hitStr += ` for ${damageDone}`;
             }
             this.log(time, hitStr);
+        }
+        if (spell instanceof SpellDamage) {
+            if (spell.callback) {
+                spell.callback(this, hitOutcome);
+            }
         }
         this.updateProcs(time, is_mh, hitOutcome, damageDone, cleanDamage, spell);
         this.buffManager.update(time);

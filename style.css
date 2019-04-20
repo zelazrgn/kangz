@@ -68,5 +68,59 @@ label {
 }
 
 .chosenBuffs, .equipedItems {
+    font-weight: lighter;
+}
+
+.equipedItems {
     border-bottom: 1px solid black;
+}
+
+.simStats {
+    display: grid;
+    grid-template-columns: min-content min-content;
+    white-space: nowrap;
+    grid-column-gap: 10px;
+    font-size: 13px;
+    font-family:
+        "SFMono-Regular",
+        Consolas,
+        "Liberation Mono",
+        Menlo,
+        Courier,
+        monospace;
+}
+
+.simStats>*:nth-child(2n-1) {
+    text-align: right;
+}
+
+.simStats>*::before {
+    font-family: sans-serif;
+    font-size: 12px;
+}
+
+.dps {
+    font-weight: bold;
+}
+
+.dps::before {
+    content: 'DPS: ';
+    font-weight: normal;
+}
+
+.normalDPS::before {
+    content: 'Norm. DPS: ';
+}
+
+.execDPS::before {
+    content: 'Exec. DPS: ';
+}
+
+
+.time::before {
+    content: 'Time: ';
+}
+
+.rlpm::before {
+    content: 'RPLM: ';
 }

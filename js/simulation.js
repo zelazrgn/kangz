@@ -1,4 +1,5 @@
 import { setupPlayer } from "./simulation_utils.js";
+export const EXECUTE_PHASE_RATIO = 0.15;
 class Fight {
     constructor(race, stats, equipment, buffs, chooseAction, fightLength = 60, log) {
         this.duration = 0;
@@ -12,7 +13,7 @@ class Fight {
                 this.update();
             }
             f({
-                damageDone: this.player.damageDone,
+                damageLog: this.player.damageLog,
                 fightLength: this.fightLength,
                 powerLost: this.player.powerLost
             });
@@ -21,10 +22,12 @@ class Fight {
     pause() { }
     cancel() { }
     update() {
+        const beginExecuteTime = this.fightLength * (1 - EXECUTE_PHASE_RATIO);
+        const isExecutePhase = this.duration >= beginExecuteTime;
         this.player.buffManager.update(this.duration);
-        this.chooseAction(this.player, this.duration, this.fightLength);
+        this.chooseAction(this.player, this.duration, this.fightLength, isExecutePhase);
         this.player.updateAttackingState(this.duration);
-        const waitingForTime = this.chooseAction(this.player, this.duration, this.fightLength);
+        const waitingForTime = this.chooseAction(this.player, this.duration, this.fightLength, isExecutePhase);
         let nextSwingTime = this.player.mh.nextSwingTime;
         if (this.player.oh) {
             nextSwingTime = Math.min(nextSwingTime, this.player.oh.nextSwingTime);
@@ -39,6 +42,9 @@ class Fight {
         }
         if (waitingForTime && waitingForTime < this.duration) {
             this.duration = waitingForTime;
+        }
+        if (!isExecutePhase && beginExecuteTime < this.duration) {
+            this.duration = beginExecuteTime;
         }
     }
 }
@@ -61,7 +67,7 @@ class RealtimeFight extends Fight {
                 }
                 else {
                     f({
-                        damageDone: this.player.damageDone,
+                        damageLog: this.player.damageLog,
                         fightLength: this.fightLength,
                         powerLost: this.player.powerLost
                     });
@@ -89,27 +95,48 @@ export class Simulation {
         this.log = log;
     }
     get status() {
-        const combinedFightResults = this.fightResults.reduce((acc, current) => {
-            return {
-                damageDone: acc.damageDone + current.damageDone,
-                fightLength: acc.fightLength + current.fightLength,
-                powerLost: acc.powerLost + current.powerLost,
-            };
-        }, {
-            damageDone: 0,
-            fightLength: 0,
-            powerLost: 0
-        });
+        let normalDamage = 0;
+        let execDamage = 0;
+        let normalDuration = 0;
+        let execDuration = 0;
+        let powerLost = 0;
+        for (let fightResult of this.fightResults) {
+            const beginExecuteTime = fightResult.fightLength * (1 - EXECUTE_PHASE_RATIO);
+            for (let [time, damage] of fightResult.damageLog) {
+                if (time >= beginExecuteTime) {
+                    execDamage += damage;
+                }
+                else {
+                    normalDamage += damage;
+                }
+            }
+            normalDuration += beginExecuteTime;
+            execDuration += fightResult.fightLength - beginExecuteTime;
+            powerLost += fightResult.powerLost;
+        }
         if (this.realtime && this.currentFight) {
-            combinedFightResults.damageDone += this.currentFight.player.damageDone;
-            combinedFightResults.fightLength += this.currentFight.duration;
-            combinedFightResults.powerLost += this.currentFight.player.powerLost;
+            const beginExecuteTime = this.currentFight.fightLength * (1 - EXECUTE_PHASE_RATIO);
+            for (let [time, damage] of this.currentFight.player.damageLog) {
+                if (time >= beginExecuteTime) {
+                    execDamage += damage;
+                }
+                else {
+                    normalDamage += damage;
+                }
+            }
+            normalDuration += Math.min(beginExecuteTime, this.currentFight.duration);
+            execDuration += Math.max(0, this.currentFight.duration - beginExecuteTime);
+            powerLost += this.currentFight.player.powerLost;
         }
         return {
-            damageDone: combinedFightResults.damageDone,
-            duration: combinedFightResults.fightLength,
+            totalDamage: normalDamage + execDamage,
+            normalDamage: normalDamage,
+            execDamage: execDamage,
+            duration: normalDuration + execDuration,
+            normalDuration: normalDuration,
+            execDuration: execDuration,
+            powerLost: powerLost,
             fights: this.fightResults.length,
-            powerLost: combinedFightResults.powerLost,
         };
     }
     start() {
