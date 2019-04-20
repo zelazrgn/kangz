@@ -124,3 +124,7 @@ label {
 .rlpm::before {
     content: 'RPLM: ';
 }
+
+.closeBtn {
+    float: right;
+}

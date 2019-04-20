@@ -257,6 +257,15 @@ export const items: (ItemDescription|WeaponDescription)[] = [
         speed: 2.90
     },
     {
+        name: "Doom's Edge",
+        type: WeaponType.AXE,
+        slot: ItemSlot.MAINHAND|ItemSlot.OFFHAND,
+        min: 83,
+        max: 154,
+        speed: 2.30,
+        stats: { agi: 16, str: 9 }
+    },
+    {
         name: "Badge of the Swarmguard",
         slot: ItemSlot.TRINKET1 | ItemSlot.TRINKET2,
         onuse: (() => {

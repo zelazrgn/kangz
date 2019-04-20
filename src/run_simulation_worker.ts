@@ -25,7 +25,7 @@ mainThreadInterface.addEventListener('simulate', (data: any) => {
     currentSim = new Simulation(simdesc.race, simdesc.stats,
         equipmentIndicesToItem(simdesc.equipment),
         buffIndicesToBuff(simdesc.buffs),
-        generateChooseAction(simdesc.heroicStrikeRageReq, simdesc.hamstringRageReq),
+        generateChooseAction(simdesc.heroicStrikeRageReq, simdesc.hamstringRageReq, simdesc.bloodthirstExecRageLimit),
         simdesc.fightLength, simdesc.realtime, logFunction);
 
     currentSim.start();

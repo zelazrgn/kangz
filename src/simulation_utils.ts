@@ -17,6 +17,7 @@ export interface SimulationDescription {
     realtime: boolean,
     heroicStrikeRageReq: number,
     hamstringRageReq: number,
+    bloodthirstExecRageLimit: number,
 }
 
 export function setupPlayer(race: Race, stats: StatValues, equipment: ItemWithSlot[], buffs: Buff[], log?: LogFunction) {

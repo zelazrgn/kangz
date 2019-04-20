@@ -15,6 +15,7 @@ const raceEl = <HTMLSelectElement>document.getElementById('race')!;
 const buffsEl = document.getElementById('buffs')!;
 const heroicStrikeRageReqEl = <HTMLInputElement>document.getElementById('heroicstrikerr')!;
 const hamstringRageReqEl = <HTMLInputElement>document.getElementById('hamstringrr')!;
+const bloodthirstExecRageLimitEl = <HTMLInputElement>document.getElementById('bloodthirstexecrl')!;
 const fightLengthEl = <HTMLInputElement>document.getElementById('fightlength')!;
 
 function getRace(): Race {
@@ -159,6 +160,17 @@ function getBuffs(): number[] {
     return res;
 }
 
+function setBuffs(buffs: number[]) { // TODO - inefficient, need map
+    for (let inputEl of buffInputEls) {
+        inputEl.checked = false;
+        for (let buffIdx of buffs) {
+            if (parseInt(inputEl.value) === buffIdx) {
+                inputEl.checked = true;
+            }
+        }
+    }
+}
+
 function getEquipmentIndices(): [number, ItemSlot][] {
     const res: [number, ItemSlot][] = [];
 
@@ -172,6 +184,12 @@ function getEquipmentIndices(): [number, ItemSlot][] {
     return res;
 }
 
+function setEquipment(equipment: [number, ItemSlot][]) {
+    for (let [index, slot] of equipment) {
+        categoryEls.get(slot)!.value = '' + index;
+    }
+}
+
 function getStats(): StatValues {
     return {
         ap: parseInt(statEls.ap!.value),
@@ -181,6 +199,15 @@ function getStats(): StatValues {
         crit: parseInt(statEls.crit!.value),
         haste: parseFloat(statEls.haste!.value),
     };
+}
+
+function setStats(stats: StatValues) {
+    statEls.ap!.value = '' + stats.ap!;
+    statEls.str!.value = '' + stats.str!;
+    statEls.agi!.value = '' + stats.agi!;
+    statEls.hit!.value = '' + stats.hit!;
+    statEls.crit!.value = '' + stats.crit!;
+    statEls.haste!.value = '' + stats.haste!;
 }
 
 function formatStats(stats: StatValues) {
@@ -221,6 +248,7 @@ function startSim() {
     simEl.classList.add('sim');
 
     const pauseBtn = document.createElement('button');
+    pauseBtn.classList.add('pauseBtn');
     pauseBtn.textContent = 'Pause';
     simEl.append(pauseBtn);
 
@@ -231,7 +259,13 @@ function startSim() {
         simEl.classList.toggle('paused', paused);
     });
 
+    const loadBtn = document.createElement('button');
+    loadBtn.classList.add('loadBtn');
+    loadBtn.textContent = 'Load Settings';
+    simEl.append(loadBtn);
+
     const closeBtn = document.createElement('button');
+    closeBtn.classList.add('closeBtn');
     closeBtn.textContent = 'Close';
     simEl.append(closeBtn);
 
@@ -274,6 +308,11 @@ function startSim() {
     chosenStatsEL.textContent = 'Stats: ' + formatStats(getStats());
     simEl.append(chosenStatsEL);
 
+    const fightSettings = document.createElement('div');
+    fightSettings.classList.add('simDetail', 'fightSettings');
+    fightSettings.textContent = `fight length: ${parseInt(fightLengthEl.value)}, her rr: ${parseInt(heroicStrikeRageReqEl.value)}, ham rr: ${parseInt(hamstringRageReqEl.value)}, bt rl:${parseInt(bloodthirstExecRageLimitEl.value)}`;
+    simEl.append(fightSettings);
+
     const itemsEl = document.createElement('div');
     itemsEl.classList.add('simDetail', 'equipedItems');
     itemsEl.textContent = 'Items: ' + equipmentIndicesToItem(getEquipmentIndices()).map(([item, slot]) => item.name).join(', ');
@@ -298,7 +337,7 @@ function startSim() {
     worker.addEventListener('status', (status: any) => {
         const dps = status.totalDamage / status.duration * 1000;
         const normalDPS = status.normalDamage / status.normalDuration * 1000;
-        const execDPS = status.execDamage / status.execDuration * 1000;
+        const execDPS = (status.execDamage / status.execDuration * 1000) || 0;
 
         dpsEl.textContent = `${dps.toFixed(1)}`;
         normalDPSEl.textContent = `${normalDPS.toFixed(1)}`;
@@ -341,7 +380,20 @@ function startSim() {
         realtime: realtime,
         heroicStrikeRageReq: parseInt(heroicStrikeRageReqEl.value),
         hamstringRageReq: parseInt(hamstringRageReqEl.value),
+        bloodthirstExecRageLimit: parseInt(bloodthirstExecRageLimitEl.value),
     };
+
+    loadBtn.addEventListener('click', () => {
+        raceEl.value = '' + simdisc.race;
+        setStats(simdisc.stats);
+        setEquipment(simdisc.equipment);
+        setBuffs(simdisc.buffs);
+        fightLengthEl.value = '' + simdisc.fightLength;
+        realtimeEl.checked = simdisc.realtime;
+        heroicStrikeRageReqEl.value = '' + simdisc.heroicStrikeRageReq;
+        hamstringRageReqEl.value = '' + simdisc.hamstringRageReq;
+        bloodthirstExecRageLimitEl.value = '' + simdisc.bloodthirstExecRageLimit;
+    });
 
     worker.send('simulate', simdisc);
 }

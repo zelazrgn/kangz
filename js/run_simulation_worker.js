@@ -15,7 +15,7 @@ mainThreadInterface.addEventListener('simulate', (data) => {
             });
         };
     }
-    currentSim = new Simulation(simdesc.race, simdesc.stats, equipmentIndicesToItem(simdesc.equipment), buffIndicesToBuff(simdesc.buffs), generateChooseAction(simdesc.heroicStrikeRageReq, simdesc.hamstringRageReq), simdesc.fightLength, simdesc.realtime, logFunction);
+    currentSim = new Simulation(simdesc.race, simdesc.stats, equipmentIndicesToItem(simdesc.equipment), buffIndicesToBuff(simdesc.buffs), generateChooseAction(simdesc.heroicStrikeRageReq, simdesc.hamstringRageReq, simdesc.bloodthirstExecRageLimit), simdesc.fightLength, simdesc.realtime, logFunction);
     currentSim.start();
     setInterval(() => {
         mainThreadInterface.send('status', currentSim.status);

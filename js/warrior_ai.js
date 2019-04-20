@@ -1,5 +1,5 @@
 import { ItemSlot } from "./item";
-export function generateChooseAction(heroicStrikeRageReq, hamstringRageReq) {
+export function generateChooseAction(heroicStrikeRageReq, hamstringRageReq, bloodthirstExecRageLimit) {
     return (player, time, fightLength, executePhase) => {
         const warrior = player;
         const timeRemainingSeconds = (fightLength - time) / 1000;
@@ -14,10 +14,15 @@ export function generateChooseAction(heroicStrikeRageReq, hamstringRageReq) {
         }
         let waitingForTime;
         if (warrior.nextGCDTime <= time) {
-            if (timeRemainingSeconds <= 30 && warrior.deathWish.canCast(time)) {
+            if (warrior.deathWish.canCast(time) &&
+                (timeRemainingSeconds <= 30
+                    || (timeRemainingSeconds - warrior.deathWish.spell.cooldown) > 30)) {
                 warrior.deathWish.cast(time);
                 useItemByName(ItemSlot.TRINKET1, "Badge of the Swarmguard");
                 useItemByName(ItemSlot.TRINKET2, "Badge of the Swarmguard");
+            }
+            else if (executePhase && warrior.bloodthirst.canCast(time) && warrior.rage < bloodthirstExecRageLimit) {
+                warrior.bloodthirst.cast(time);
             }
             else if (executePhase && warrior.execute.canCast(time)) {
                 warrior.execute.cast(time);
@@ -42,7 +47,7 @@ export function generateChooseAction(heroicStrikeRageReq, hamstringRageReq) {
                 warrior.hamstring.cast(time);
             }
         }
-        if (warrior.rage >= heroicStrikeRageReq && !warrior.queuedSpell) {
+        if (!executePhase && warrior.rage >= heroicStrikeRageReq && !warrior.queuedSpell) {
             warrior.queuedSpell = warrior.heroicStrike;
             if (warrior.log)
                 warrior.log(time, 'queueing heroic strike');
