@@ -113,6 +113,15 @@ class RealtimeFight extends Fight {
 
 export type FightResult = { damageLog: DamageLog, fightLength: number, powerLost: number};
 
+export type SimulationSummary = {
+    normalDamage: number,
+    execDamage: number,
+    normalDuration: number,
+    execDuration: number,
+    powerLost: number,
+    fights: number,
+};
+
 export class Simulation {
     race: Race;
     stats: StatValues;
@@ -130,6 +139,8 @@ export class Simulation {
 
     currentFight?: Fight;
 
+    protected cachedSummmary: SimulationSummary = { normalDamage: 0, execDamage: 0, normalDuration: 0, execDuration: 0, powerLost: 0, fights: 0 };
+
     constructor(race: Race, stats: StatValues, equipment: ItemWithSlot[], buffs: Buff[], chooseAction: ChooseAction, fightLength = 60, realtime = false, log?: LogFunction) {
         this.race = race;
         this.stats = stats;
@@ -142,28 +153,32 @@ export class Simulation {
     }
 
     get status() {
-        let normalDamage = 0;
-        let execDamage = 0;
-        let normalDuration = 0;
-        let execDuration = 0;
-
-        let powerLost = 0;
-
         for (let fightResult of this.fightResults) {
             const beginExecuteTime = fightResult.fightLength * (1 - EXECUTE_PHASE_RATIO);
 
             for (let [time, damage] of fightResult.damageLog) {
                 if (time >= beginExecuteTime) {
-                    execDamage += damage;
+                    this.cachedSummmary.execDamage += damage;
                 } else {
-                    normalDamage += damage;
+                    this.cachedSummmary.normalDamage += damage;
                 }
             }
 
-            normalDuration += beginExecuteTime;
-            execDuration += fightResult.fightLength - beginExecuteTime;
-            powerLost += fightResult.powerLost;
+            this.cachedSummmary.normalDuration += beginExecuteTime;
+            this.cachedSummmary.execDuration += fightResult.fightLength - beginExecuteTime;
+            this.cachedSummmary.powerLost += fightResult.powerLost;
+
+            this.cachedSummmary.fights++;
         }
+
+        this.fightResults = [];
+
+        let normalDamage = this.cachedSummmary.normalDamage;
+        let execDamage = this.cachedSummmary.execDamage;
+        let normalDuration = this.cachedSummmary.normalDuration;
+        let execDuration = this.cachedSummmary.execDuration;
+        let powerLost = this.cachedSummmary.powerLost;
+        let fights = this.cachedSummmary.fights;
 
         if (this.realtime && this.currentFight) {
             const beginExecuteTime = this.currentFight.fightLength * (1 - EXECUTE_PHASE_RATIO);
@@ -179,6 +194,7 @@ export class Simulation {
             normalDuration += Math.min(beginExecuteTime, this.currentFight.duration);
             execDuration += Math.max(0, this.currentFight.duration - beginExecuteTime);
             powerLost += this.currentFight.player.powerLost;
+            fights++;
         }
 
         return {
@@ -189,7 +205,7 @@ export class Simulation {
             normalDuration: normalDuration,
             execDuration: execDuration,
             powerLost: powerLost,
-            fights: this.fightResults.length,
+            fights: fights,
         }
     }
 
