@@ -24,6 +24,10 @@ button {
     color: inherit;
     cursor: pointer;
     height: 26px;
+    margin: 0;
+    padding: 0;
+    font-size: 11px;
+    font-family: inherit;
 }
 
 button:hover:not(:active) {
@@ -45,6 +49,10 @@ select {
     background-size: auto 37%;
     background-position: right 6px center;
     background-repeat: no-repeat;
+}
+
+option {
+    background-color: #565656; /* same color as select */
 }
 
 #race {
@@ -137,7 +145,7 @@ label {
 
 .simControlContainer {
     display: grid;
-    grid-template-columns: 87px 87px auto;
+    grid-template-columns: 90px 90px auto;
     grid-column-gap: 10px;
 }
 
