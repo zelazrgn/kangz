@@ -20,6 +20,21 @@ class WorkerEventInterface {
         }
     }
 
+    removeEventListener(event: string, listenerToRemove: WorkerEventListener) {
+        if (this.eventListeners.has(event)) {
+            let eventListenersForEvent = this.eventListeners.get(event);
+            if (eventListenersForEvent) {
+                this.eventListeners.set(event, eventListenersForEvent.filter((listener) => {
+                    return listener !== listenerToRemove;
+                }));
+            }
+        }
+    }
+
+    removeEventListenersForEvent(event: string) {
+        this.eventListeners.delete(event);
+    }
+
     send(event: string, data: any, target: any = self) {
         target.postMessage({
             event: event,

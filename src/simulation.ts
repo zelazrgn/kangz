@@ -38,7 +38,7 @@ class Fight {
         });
     }
 
-    pause() {}
+    pause(pause: boolean) {}
 
     cancel() {}
 
@@ -106,8 +106,8 @@ class RealtimeFight extends Fight {
         });
     }
 
-    pause() {
-        this.paused = !this.paused;
+    pause(pause: boolean) {
+        this.paused = pause;
     }
 }
 
@@ -122,6 +122,8 @@ export type SimulationSummary = {
     fights: number,
 };
 
+export type StatusHandler = (status: SimulationSummary) => void;
+
 export class Simulation {
     race: Race;
     stats: StatValues;
@@ -133,7 +135,7 @@ export class Simulation {
     log?: LogFunction
 
     protected requestStop = false;
-    protected paused = false;
+    protected _paused = false;
 
     fightResults: FightResult[] = [];
 
@@ -152,7 +154,11 @@ export class Simulation {
         this.log = log;
     }
 
-    get status() {
+    get paused() {
+        return this._paused;
+    }
+
+    get status(): SimulationSummary {
         for (let fightResult of this.fightResults) {
             const beginExecuteTime = fightResult.fightLength * (1 - EXECUTE_PHASE_RATIO);
 
@@ -198,10 +204,8 @@ export class Simulation {
         }
 
         return {
-            totalDamage: normalDamage + execDamage,
             normalDamage: normalDamage,
             execDamage: execDamage,
-            duration: normalDuration + execDuration,
             normalDuration: normalDuration,
             execDuration: execDuration,
             powerLost: powerLost,
@@ -214,7 +218,7 @@ export class Simulation {
 
         const outerloop = () => {
             if (this.paused) {
-                setTimeout(outerloop, 1000);
+                setTimeout(outerloop, 100);
                 return;
             }
 
@@ -241,10 +245,14 @@ export class Simulation {
         outerloop();
     }
 
-    pause() {
-        this.paused = !this.paused;
+    pause(pause: boolean|undefined) {
+        if (pause === undefined) {
+            pause = !this.paused;
+        }
+
+        this._paused = pause;
         if (this.currentFight) {
-            this.currentFight.pause();
+            this.currentFight.pause(pause);
         }
     }
 

@@ -135,9 +135,14 @@ export class Player extends Unit {
                 }
         }
     }
-    calculateCritChance() {
+    calculateCritChance(victim, is_mh, spell) {
+        if (LH_CORE_BUG && spell && spell.type == SpellType.PHYSICAL) {
+            spell = undefined;
+        }
+        const skillBonus = 0.04 * (this.calculateWeaponSkillValue(is_mh, spell) - victim.maxSkillForLevel);
         let crit = this.buffManager.stats.crit;
         crit += this.buffManager.stats.agi * this.buffManager.stats.statMult / 20;
+        crit += skillBonus;
         return crit;
     }
     calculateMissChance(victim, is_mh, spell) {
@@ -182,13 +187,20 @@ export class Player extends Unit {
     calculateSwingRawDamage(is_mh) {
         return frand(...this.calculateSwingMinMaxDamage(is_mh));
     }
+    critCap() {
+        const skillBonus = 4 * (this.calculateWeaponSkillValue(true) - this.target.maxSkillForLevel);
+        const miss_chance = Math.round(this.calculateMissChance(this.target, true) * 100);
+        const dodge_chance = Math.round(this.target.dodgeChance * 100) - skillBonus;
+        const glance_chance = clamp((10 + (this.target.defenseSkill - 300) * 2) * 100, 0, 4000);
+        return (10000 - (miss_chance + dodge_chance + glance_chance)) / 100;
+    }
     rollMeleeHitOutcome(victim, is_mh, spell) {
         const roll = urand(0, 10000);
         let sum = 0;
         let tmp = 0;
         const miss_chance = Math.round(this.calculateMissChance(victim, is_mh, spell) * 100);
         const dodge_chance = Math.round(victim.dodgeChance * 100);
-        const crit_chance = Math.round(this.calculateCritChance() * 100);
+        const crit_chance = Math.round(this.calculateCritChance(victim, is_mh, spell) * 100);
         const skillBonus = 4 * (this.calculateWeaponSkillValue(is_mh, spell) - victim.maxSkillForLevel);
         tmp = miss_chance;
         if (tmp > 0 && roll < (sum += tmp)) {
@@ -205,11 +217,7 @@ export class Player extends Unit {
                 return MeleeHitOutcome.MELEE_HIT_GLANCING;
             }
         }
-        tmp = crit_chance + skillBonus;
-        if (LH_CORE_BUG && spell && spell.type == SpellType.PHYSICAL) {
-            const overrideSkillBonusForCrit = 4 * (this.calculateWeaponSkillValue(is_mh, undefined) - victim.maxSkillForLevel);
-            tmp = crit_chance + overrideSkillBonusForCrit;
-        }
+        tmp = crit_chance;
         if (tmp > 0 && roll < (sum += tmp)) {
             return MeleeHitOutcome.MELEE_HIT_CRIT;
         }

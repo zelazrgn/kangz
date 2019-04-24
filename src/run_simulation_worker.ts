@@ -31,12 +31,14 @@ mainThreadInterface.addEventListener('simulate', (data: any) => {
     currentSim.start();
 
     setInterval(() => {
-        mainThreadInterface.send('status', currentSim!.status);
-    }, 1000);
+        if (currentSim && !currentSim.paused) {
+            mainThreadInterface.send('status', currentSim!.status);
+        }
+    }, 500);
 });
 
-mainThreadInterface.addEventListener('pause', () => {
+mainThreadInterface.addEventListener('pause', (pause: boolean|undefined) => {
     if (currentSim) {
-        currentSim.pause();
+        currentSim.pause(pause);
     }
 });

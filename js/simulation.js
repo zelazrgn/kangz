@@ -19,7 +19,7 @@ class Fight {
             });
         });
     }
-    pause() { }
+    pause(pause) { }
     cancel() { }
     update() {
         const beginExecuteTime = this.fightLength * (1 - EXECUTE_PHASE_RATIO);
@@ -76,14 +76,14 @@ class RealtimeFight extends Fight {
             requestAnimationFrame(loop);
         });
     }
-    pause() {
-        this.paused = !this.paused;
+    pause(pause) {
+        this.paused = pause;
     }
 }
 export class Simulation {
     constructor(race, stats, equipment, buffs, chooseAction, fightLength = 60, realtime = false, log) {
         this.requestStop = false;
-        this.paused = false;
+        this._paused = false;
         this.fightResults = [];
         this.cachedSummmary = { normalDamage: 0, execDamage: 0, normalDuration: 0, execDuration: 0, powerLost: 0, fights: 0 };
         this.race = race;
@@ -94,6 +94,9 @@ export class Simulation {
         this.fightLength = fightLength;
         this.realtime = realtime;
         this.log = log;
+    }
+    get paused() {
+        return this._paused;
     }
     get status() {
         for (let fightResult of this.fightResults) {
@@ -134,10 +137,8 @@ export class Simulation {
             fights++;
         }
         return {
-            totalDamage: normalDamage + execDamage,
             normalDamage: normalDamage,
             execDamage: execDamage,
-            duration: normalDuration + execDuration,
             normalDuration: normalDuration,
             execDuration: execDuration,
             powerLost: powerLost,
@@ -148,7 +149,7 @@ export class Simulation {
         const fightClass = this.realtime ? RealtimeFight : Fight;
         const outerloop = () => {
             if (this.paused) {
-                setTimeout(outerloop, 1000);
+                setTimeout(outerloop, 100);
                 return;
             }
             let count = 0;
@@ -170,10 +171,13 @@ export class Simulation {
         };
         outerloop();
     }
-    pause() {
-        this.paused = !this.paused;
+    pause(pause) {
+        if (pause === undefined) {
+            pause = !this.paused;
+        }
+        this._paused = pause;
         if (this.currentFight) {
-            this.currentFight.pause();
+            this.currentFight.pause(pause);
         }
     }
     stop() {

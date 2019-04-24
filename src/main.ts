@@ -5,6 +5,7 @@ import { SimulationDescription, setupPlayer, equipmentIndicesToItem, buffIndices
 import { WorkerInterface } from "./worker_event_interface.js";
 import { buffs } from "./data/spells.js";
 import { Race } from "./player.js";
+import { SimulationSummary } from "./simulation.js";
 
 const realtimeEl: HTMLInputElement = <HTMLInputElement>document.getElementById('realtime')!;
 const statContainerEL = document.getElementById('stats')!;
@@ -229,28 +230,61 @@ function updateStats() {
     })();
 
     const stats = player.buffManager.stats;
-    
-    myStatsEl.textContent = `
-        AP: ${player.ap.toFixed(2)}
-        Crit: ${player.calculateCritChance().toFixed(2)}
-        Hit: ${stats.hit}
-        Str: ${(stats.str * stats.statMult).toFixed(2)}
-        Agi: ${(stats.agi * stats.
-            statMult).toFixed(2)}
-        Haste: ${(stats.haste)};`;
-}
-updateStats();
 
-function startSim() {
-    const realtime = realtimeEl.checked;
+    myStatsEl.innerHTML = '';
+
+    function prepend(str: string, length: number) {
+        return ' '.repeat(Math.max(0, length - str.length)) + str;
+    }
+
+    const myStats = [
+        ['AP', player.ap.toFixed(2)],
+        ['Crit', prepend(player.calculateCritChance(player.target!, true).toFixed(2), 5)],
+        ['Hit', stats.hit],
+        ['Crit Cap', prepend(player.critCap().toFixed(2), 5)],
+        ['Haste', stats.haste],
+        ['Crit - Cap', prepend((player.calculateCritChance(player.target!, true) - player.critCap()).toFixed(2), 5)],
+        ['Str', (stats.str * stats.statMult).toFixed(2)],
+        ['Agi', (stats.agi * stats.statMult).toFixed(2)],
+    ];
+
+    for (let [label, value] of myStats) {
+        const divLabel = document.createElement('div');
+        divLabel.textContent = `${label}`;
+        const divValue = document.createElement('div');
+        divValue.textContent = `${value}`;
+        myStatsEl.append(divLabel, divValue);
+    }
+
+    startInstantSim();
+}
+
+let previousSim: SimInstance|undefined = undefined;
+
+function saveInstantSim() {
+    if (!previousSim) {
+        return;
+    }
+
+    if (previousSim.saved) {
+        throw new Error("don't save a sim that is already saved");
+    }
+    
+    previousSim.saved = true;
+
+    const worker = previousSim.worker;
 
     const simEl = document.createElement('div');
     simEl.classList.add('sim');
 
+    const simControlContainerEl = document.createElement('div');
+    simControlContainerEl.classList.add('simControlContainer');
+    simEl.append(simControlContainerEl);
+
     const pauseBtn = document.createElement('button');
     pauseBtn.classList.add('pauseBtn');
     pauseBtn.textContent = 'Pause';
-    simEl.append(pauseBtn);
+    simControlContainerEl.append(pauseBtn);
 
     pauseBtn.addEventListener('click', () => {
         worker.send('pause', undefined);
@@ -262,12 +296,25 @@ function startSim() {
     const loadBtn = document.createElement('button');
     loadBtn.classList.add('loadBtn');
     loadBtn.textContent = 'Load Settings';
-    simEl.append(loadBtn);
+    simControlContainerEl.append(loadBtn);
+
+    const simdisc = previousSim.description;
+
+    loadBtn.addEventListener('click', () => {
+        raceEl.value = '' + simdisc.race;
+        setStats(simdisc.stats);
+        setEquipment(simdisc.equipment);
+        setBuffs(simdisc.buffs);
+        fightLengthEl.value = '' + simdisc.fightLength;
+        realtimeEl.checked = simdisc.realtime;
+        heroicStrikeRageReqEl.value = '' + simdisc.heroicStrikeRageReq;
+        hamstringRageReqEl.value = '' + simdisc.hamstringRageReq;
+        bloodthirstExecRageLimitEl.value = '' + simdisc.bloodthirstExecRageLimit;
+    });
 
     const closeBtn = document.createElement('button');
     closeBtn.classList.add('closeBtn');
-    closeBtn.textContent = 'Close';
-    simEl.append(closeBtn);
+    simControlContainerEl.append(closeBtn);
 
     closeBtn.addEventListener('click', () => {
         worker.terminate();
@@ -289,6 +336,31 @@ function startSim() {
     const normalDPSEl = document.createElement('div');
     normalDPSEl.classList.add('normalDPS');
     simStatsEl.append(normalDPSEl);
+
+    worker.addEventListener('status', (status: SimulationSummary) => {
+        const totalDamage = status.normalDamage + status.execDamage;
+        const totalDuration = status.normalDuration + status.execDuration;
+
+        const dps =totalDamage / totalDuration * 1000;
+        const normalDPS = status.normalDamage / status.normalDuration * 1000;
+        const execDPS = (status.execDamage / status.execDuration * 1000) || 0;
+
+        dpsEl.textContent = `${dps.toFixed(1)}`;
+        normalDPSEl.textContent = `${normalDPS.toFixed(1)}`;
+        execDPSEl.textContent = `${execDPS.toFixed(1)}`;
+
+        const seconds = totalDuration / 1000;
+        const days = seconds / 60 / 60 / 24;
+
+        if (days >= 0.1) {
+            timeEl.textContent = `${(days).toFixed(3)} days`;
+        } else {
+            timeEl.textContent = `${(seconds).toFixed(3)} seconds`;
+        }
+
+        const rlpm = status.powerLost / totalDuration * 1000 * 60;
+        rlpmEl.textContent = `${rlpm.toFixed(1)}`;
+    });
 
     const rlpmEl = document.createElement('div');
     rlpmEl.classList.add('rlpm');
@@ -326,16 +398,76 @@ function startSim() {
     const logEl = document.createElement('div');
     logEl.classList.add('log');
 
-    if (realtime) {
+    if (simdisc.realtime) {
         simEl.append(logEl);   
+    }
+
+    if (simdisc.realtime) {
+        worker.addEventListener('log', (data) => {
+            const {time, text} = data;
+            const newEl = document.createElement("div");
+            newEl.textContent = `${(time / 1000).toFixed(3)} ${text}.`;
+
+            const atScrollBottom = logEl.scrollHeight - logEl.scrollTop === logEl.clientHeight;
+            logEl.appendChild(newEl);
+
+            if (atScrollBottom) {
+                logEl.scrollTop = logEl.scrollHeight;
+            }
+        });
     }
 
     simsContainerEl.append(simEl);
 
+    worker.send('pause', false);
+}
+
+interface SimInstance {
+    worker: WorkerInterface,
+    instantStatusHandler: ((status: SimulationSummary) => void)|undefined,
+    description: SimulationDescription,
+    saved: boolean,
+}
+
+function startInstantSim(forceSave = false) {
+    if (previousSim && !previousSim.saved) {
+        previousSim.worker.terminate();
+    }
+
+    if (previousSim && previousSim.instantStatusHandler) {
+        previousSim.worker.removeEventListener('status', previousSim.instantStatusHandler);
+    }
+
     const worker = new WorkerInterface('./js/worker-bundle.js');
 
-    worker.addEventListener('status', (status: any) => {
-        const dps = status.totalDamage / status.duration * 1000;
+    const dpsEl = document.querySelector('#instantSimStats .dps')!;
+    const normalDPSEl = document.querySelector('#instantSimStats .normalDPS')!;
+    const execDPSEl = document.querySelector('#instantSimStats .execDPS')!;
+
+    const dpsDeltaEl = dpsEl.nextElementSibling!;
+    const normalDPSDeltaEl = normalDPSEl.nextElementSibling!;
+    const execDPSDeltaEl = execDPSEl.nextElementSibling!;
+
+    const instantStatsEl = document.querySelector('#instantSimStats')!;
+    instantStatsEl.classList.toggle('old', true);
+
+    const previousDPS = dpsEl.textContent ? parseFloat(dpsEl.textContent) : undefined;
+    const previousNormalDPS = normalDPSEl.textContent ? parseFloat(normalDPSEl.textContent) : undefined;
+    const previousExecDPS = execDPSEl.textContent ? parseFloat(execDPSEl.textContent) : undefined;
+
+    function dpsDiffStr(dps1: number, dps2: number) {
+        dps1 = parseFloat(dps1.toFixed(1));
+        dps2 = parseFloat(dps2.toFixed(1));
+
+        return (dps1 >= dps2 ? '+' : '') + (dps1 - dps2).toFixed(1);
+    }
+
+    const statusHandler = (status: SimulationSummary) => {
+        instantStatsEl.classList.toggle('old', false);
+        const totalDamage = status.normalDamage + status.execDamage;
+        const totalDuration = status.normalDuration + status.execDuration;
+
+        const dps = totalDamage / totalDuration * 1000;
         const normalDPS = status.normalDamage / status.normalDuration * 1000;
         const execDPS = (status.execDamage / status.execDuration * 1000) || 0;
 
@@ -343,33 +475,18 @@ function startSim() {
         normalDPSEl.textContent = `${normalDPS.toFixed(1)}`;
         execDPSEl.textContent = `${execDPS.toFixed(1)}`;
 
-        const seconds = status.duration / 1000;
-        const days = seconds / 60 / 60 / 24;
-
-        if (days >= 0.1) {
-            timeEl.textContent = `${(days).toFixed(3)} days`;
-        } else {
-            timeEl.textContent = `${(seconds).toFixed(3)} seconds`;
+        if (previousDPS && previousNormalDPS && previousExecDPS) {
+            dpsDeltaEl.textContent = `${dpsDiffStr(dps, previousDPS)}`;
+            normalDPSDeltaEl.textContent = `${dpsDiffStr(normalDPS, previousNormalDPS)}`;
+            execDPSDeltaEl.textContent = `${dpsDiffStr(execDPS, previousExecDPS)}`;
         }
 
-        const rlpm = status.powerLost / status.duration * 1000 * 60;
-        rlpmEl.textContent = `${rlpm.toFixed(1)}`;
-    });
-
-    if (realtime) {
-        worker.addEventListener('log', (data) => {
-            const {time, text} = data;
-            const newEl = document.createElement("div");
-            newEl.textContent = `${(time / 1000).toFixed(3)} ${text}.`;
-    
-            const atScrollBottom = logEl.scrollHeight - logEl.scrollTop === logEl.clientHeight;
-            logEl.appendChild(newEl);
-    
-            if (atScrollBottom) {
-                logEl.scrollTop = logEl.scrollHeight;
-            }
-        });
+        if (status.fights > 10000 && !previousSim!.saved) {
+            worker.send('pause', true);
+        }
     }
+
+    const realtime = realtimeEl.checked;
 
     const simdisc: SimulationDescription = {
         race: getRace(),
@@ -383,21 +500,27 @@ function startSim() {
         bloodthirstExecRageLimit: parseInt(bloodthirstExecRageLimitEl.value),
     };
 
-    loadBtn.addEventListener('click', () => {
-        raceEl.value = '' + simdisc.race;
-        setStats(simdisc.stats);
-        setEquipment(simdisc.equipment);
-        setBuffs(simdisc.buffs);
-        fightLengthEl.value = '' + simdisc.fightLength;
-        realtimeEl.checked = simdisc.realtime;
-        heroicStrikeRageReqEl.value = '' + simdisc.heroicStrikeRageReq;
-        hamstringRageReqEl.value = '' + simdisc.hamstringRageReq;
-        bloodthirstExecRageLimitEl.value = '' + simdisc.bloodthirstExecRageLimit;
-    });
+    previousSim = {
+        worker: worker,
+        description: simdisc,
+        instantStatusHandler: statusHandler,
+        saved: false,
+    };
 
+    worker.addEventListener('status', statusHandler);
     worker.send('simulate', simdisc);
+
+    if (forceSave || realtime) {
+        saveInstantSim();
+    }
 }
 
 document.getElementById('startBtn')!.addEventListener('click', () => {
-    startSim();
+    if (previousSim && !previousSim.saved) {
+        saveInstantSim();
+    } else {
+        startInstantSim(true);
+    }
 });
+
+updateStats();

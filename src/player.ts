@@ -175,9 +175,21 @@ export class Player extends Unit {
         }
     }
 
-    calculateCritChance() {
+    calculateCritChance(victim: Unit, is_mh: boolean, spell?: Spell) {
+        if (LH_CORE_BUG && spell && spell.type == SpellType.PHYSICAL) {
+            // on LH core, non weapon spells like bloodthirst are benefitting from weapon skill
+            // this only affects crit, not hit/dodge/parry
+            // set the spell to undefined so it is treated like a normal melee attack (rather than using a dummy spell)
+            // when calculating weapon skill
+            spell = undefined;
+        }
+
+        const skillBonus = 0.04 * (this.calculateWeaponSkillValue(is_mh, spell) - victim.maxSkillForLevel);
+
         let crit = this.buffManager.stats.crit;
         crit += this.buffManager.stats.agi * this.buffManager.stats.statMult / 20;
+
+        crit += skillBonus;
 
         return crit;
     }
@@ -234,6 +246,15 @@ export class Player extends Unit {
         return frand(...this.calculateSwingMinMaxDamage(is_mh));
     }
 
+    critCap() {
+        const skillBonus = 4 * (this.calculateWeaponSkillValue(true) - this.target!.maxSkillForLevel);
+        const miss_chance = Math.round(this.calculateMissChance(this.target!, true) * 100);
+        const dodge_chance = Math.round(this.target!.dodgeChance * 100) - skillBonus;
+        const glance_chance = clamp((10 + (this.target!.defenseSkill - 300) * 2) * 100, 0, 4000);
+
+        return (10000 - (miss_chance + dodge_chance + glance_chance)) / 100;
+    }
+
     rollMeleeHitOutcome(victim: Unit, is_mh: boolean, spell?: Spell): MeleeHitOutcome {
         const roll = urand(0, 10000);
         let sum = 0;
@@ -242,7 +263,7 @@ export class Player extends Unit {
         // rounding instead of truncating because 19.4 * 100 was truncating to 1939.
         const miss_chance = Math.round(this.calculateMissChance(victim, is_mh, spell) * 100);
         const dodge_chance = Math.round(victim.dodgeChance * 100);
-        const crit_chance = Math.round(this.calculateCritChance() * 100);
+        const crit_chance = Math.round(this.calculateCritChance(victim, is_mh, spell) * 100);
 
         // weapon skill - target defense (usually negative)
         const skillBonus = 4 * (this.calculateWeaponSkillValue(is_mh, spell) - victim.maxSkillForLevel);
@@ -268,12 +289,7 @@ export class Player extends Unit {
             }
         }
 
-        tmp = crit_chance + skillBonus;
-
-        if (LH_CORE_BUG && spell && spell.type == SpellType.PHYSICAL) {
-            const overrideSkillBonusForCrit = 4 * (this.calculateWeaponSkillValue(is_mh, undefined) - victim.maxSkillForLevel);
-            tmp = crit_chance + overrideSkillBonusForCrit;
-        }
+        tmp = crit_chance;
 
         if (tmp > 0 && roll < (sum += tmp)) {
             return MeleeHitOutcome.MELEE_HIT_CRIT;

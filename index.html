@@ -4,9 +4,15 @@
     </head>
     <body>
         <div id="selectOptionsContainer">
-            <label for="realtime">Real-time</label>
-            <input type="checkbox" id="realtime" name="realtime">
-            <button id="startBtn" type="button">Start</button>
+            <div id="runSim">
+                <div id="instantSimStats">
+                    <h2>Quick Results</h2>
+                    <div class="dps"></div><div class="dpsDelta"></div>
+                    <div class="normalDPS"></div><div class="normalDPSDelta"></div>
+                    <div class="execDPS"></div><div class="execDPSDelta"></div>
+                </div>
+                <button id="startBtn" type="button">Save</button>
+            </div>
 
             <div id="myStats"></div>
 
@@ -42,6 +48,8 @@
                 <label for="fightlength">Avg. Fight Length (seconds)</label>
                 <input type="number" id="fightlength" name="fightlength" min="0" value="60">
             </div>
+            <label for="realtime">Real-time</label>
+            <input type="checkbox" id="realtime" name="realtime">
         </div>
         <div id="simsContainer"></div>
     </body>

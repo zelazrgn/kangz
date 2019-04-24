@@ -32,8 +32,8 @@ export class Warrior extends Player {
     get ap() {
         return this.level * 3 - 20 + this.buffManager.stats.ap + this.buffManager.stats.str * this.buffManager.stats.statMult * 2;
     }
-    calculateCritChance() {
-        return 5 + 3 + super.calculateCritChance();
+    calculateCritChance(victim, is_mh, spell) {
+        return 5 + 3 + super.calculateCritChance(victim, is_mh, spell);
     }
     calculateMeleeDamage(rawDamage, victim, is_mh, spell) {
         let [damageDone, hitOutcome, cleanDamage] = super.calculateMeleeDamage(rawDamage, victim, is_mh, spell);

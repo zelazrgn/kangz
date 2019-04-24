@@ -43,9 +43,9 @@ export class Warrior extends Player {
         return this.level * 3 - 20 + this.buffManager.stats.ap + this.buffManager.stats.str * this.buffManager.stats.statMult * 2;
     }
 
-    calculateCritChance() {
+    calculateCritChance(victim: Unit, is_mh: boolean, spell?: Spell) {
         // cruelty + berserker stance
-        return 5 + 3 + super.calculateCritChance();
+        return 5 + 3 + super.calculateCritChance(victim, is_mh, spell);
     }
 
     calculateMeleeDamage(rawDamage: number, victim: Unit, is_mh: boolean, spell?: Spell): [number, MeleeHitOutcome, number] {
