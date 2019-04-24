@@ -54,16 +54,17 @@ class RealtimeFight extends Fight {
         this.paused = false;
     }
     run() {
+        const MS_PER_UPDATE = 1000 / 60;
         return new Promise((f, r) => {
             let overrideDuration = 0;
             const loop = () => {
                 if (this.duration <= this.fightLength) {
                     if (!this.paused) {
                         this.update();
-                        overrideDuration += 1000 / 60;
+                        overrideDuration += MS_PER_UPDATE;
                         this.duration = overrideDuration;
                     }
-                    requestAnimationFrame(loop);
+                    setTimeout(loop, MS_PER_UPDATE);
                 }
                 else {
                     f({
@@ -73,7 +74,7 @@ class RealtimeFight extends Fight {
                     });
                 }
             };
-            requestAnimationFrame(loop);
+            setTimeout(loop, MS_PER_UPDATE);
         });
     }
     pause(pause) {

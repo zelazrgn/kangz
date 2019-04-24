@@ -83,6 +83,8 @@ class RealtimeFight extends Fight {
     protected paused = false;
 
     run(): Promise<FightResult> {
+        const MS_PER_UPDATE = 1000 / 60;
+
         return new Promise((f, r) => {
             let overrideDuration = 0;
 
@@ -90,10 +92,10 @@ class RealtimeFight extends Fight {
                 if (this.duration <= this.fightLength) {
                     if (!this.paused) {
                         this.update();
-                        overrideDuration += 1000 / 60;
+                        overrideDuration += MS_PER_UPDATE;
                         this.duration = overrideDuration;
                     }
-                    requestAnimationFrame(loop);
+                    setTimeout(loop, MS_PER_UPDATE);
                 } else {
                     f({
                         damageLog: this.player.damageLog,
@@ -102,7 +104,7 @@ class RealtimeFight extends Fight {
                     });
                 }
             }
-            requestAnimationFrame(loop);
+            setTimeout(loop, MS_PER_UPDATE);
         });
     }
 
