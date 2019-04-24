@@ -28,7 +28,6 @@ for (let race of [
     option.textContent = Race[race].toLowerCase();
     raceEl.appendChild(option);
 }
-raceEl.addEventListener('change', updateStats);
 raceEl.addEventListener('change', () => {
     const race = getRace();
     for (let [idx, buff] of buffs.entries()) {
@@ -36,6 +35,7 @@ raceEl.addEventListener('change', () => {
             buffInputEls[idx].checked = race === Race.HUMAN;
         }
     }
+    updateStats();
 });
 for (let el of statContainerEL.getElementsByTagName("input")) {
     statEls[el.name] = el;
