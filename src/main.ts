@@ -395,14 +395,12 @@ function saveInstantSim() {
     buffsEl.textContent = 'Buffs: ' + buffIndicesToBuff(getBuffs()).map((buff) => buff.name).join(', ');
     simEl.append(buffsEl);  
 
-    const logEl = document.createElement('div');
-    logEl.classList.add('log');
-
     if (simdisc.realtime) {
+        const logEl = document.createElement('div');
+        logEl.classList.add('log');
+
         simEl.append(logEl);   
-    }
 
-    if (simdisc.realtime) {
         worker.addEventListener('log', (data) => {
             const {time, text} = data;
             const newEl = document.createElement("div");
@@ -486,7 +484,7 @@ function startInstantSim(forceSave = false) {
         }
     }
 
-    const realtime = realtimeEl.checked;
+    const realtime = forceSave && realtimeEl.checked;
 
     const simdisc: SimulationDescription = {
         race: getRace(),
@@ -503,20 +501,22 @@ function startInstantSim(forceSave = false) {
     previousSim = {
         worker: worker,
         description: simdisc,
-        instantStatusHandler: statusHandler,
+        instantStatusHandler: realtime ? undefined : statusHandler,
         saved: false,
     };
 
-    worker.addEventListener('status', statusHandler);
+    if (!realtime) {
+        worker.addEventListener('status', statusHandler);   
+    }
     worker.send('simulate', simdisc);
 
-    if (forceSave || realtime) {
+    if (forceSave) {
         saveInstantSim();
     }
 }
 
 document.getElementById('startBtn')!.addEventListener('click', () => {
-    if (previousSim && !previousSim.saved) {
+    if (previousSim && !previousSim.saved && !realtimeEl.checked) {
         saveInstantSim();
     } else {
         startInstantSim(true);

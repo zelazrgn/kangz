@@ -165,8 +165,7 @@ label {
 }
 
 /* monospace font */
-.simStats, .log, #myStats>div:nth-child(2n), #instantSimStats {
-    white-space: pre;
+.log, .simStats, #myStats>div:nth-child(2n), #instantSimStats {
     font-family:
         "SFMono-Regular",
         Consolas,
@@ -174,6 +173,10 @@ label {
         Menlo,
         Courier,
         monospace;
+}
+
+.simStats, #myStats>div:nth-child(2n), #instantSimStats {
+    white-space: pre;
 }
 
 .simStats {
