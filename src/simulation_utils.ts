@@ -1,17 +1,19 @@
 import { StatValues } from "./stats.js";
-import { ItemWithSlot } from "./simulation.js";
 import { Buff } from "./buff.js";
 import { LogFunction, Race } from "./player.js";
 import { Warrior } from "./warrior.js";
-import { crusaderBuffMHProc, crusaderBuffOHProc, buffs, windfuryEnchant, denseDamageStone } from "./data/spells.js";
 import { Unit } from "./unit.js";
-import { ItemSlot } from "./item.js";
+import { ItemSlot, ItemDescription } from "./item.js";
+import { EnchantDescription, temporaryEnchants, enchants } from "./data/enchants.js";
 import { items } from "./data/items.js";
+import { buffs } from "./data/spells.js";
 
 export interface SimulationDescription {
     race: Race,
     stats: StatValues,
-    equipment: [number, ItemSlot][],
+    equipment: Map<ItemSlot, number>,
+    enchants: Map<ItemSlot, number>,
+    temporaryEnchants: Map<ItemSlot, number>,
     buffs: number[],
     fightLength: number,
     realtime: boolean,
@@ -20,23 +22,15 @@ export interface SimulationDescription {
     bloodthirstExecRageLimit: number,
 }
 
-export function setupPlayer(race: Race, stats: StatValues, equipment: ItemWithSlot[], buffs: Buff[], log?: LogFunction) {
+export function setupPlayer(race: Race, stats: StatValues, equipment: Map<ItemSlot, ItemDescription>, enchants: Map<ItemSlot, EnchantDescription>, temporaryEnchant: Map<ItemSlot, EnchantDescription>, buffs: Buff[], log?: LogFunction) {
     const player = new Warrior(race, stats, log);
 
-    for (let [item, slot] of equipment) {
-        player.equip(item, slot);
+    for (let [slot, item] of equipment) {
+        player.equip(slot, item, enchants.get(slot), temporaryEnchant.get(slot));
     }
 
     for (let buff of buffs) {
         player.buffManager.add(buff, 0);
-    }
-
-    player.mh!.addProc(crusaderBuffMHProc);
-    player.mh!.temporaryEnchant = race === Race.ORC ? windfuryEnchant : denseDamageStone;
-
-    if (player.oh) {
-        player.oh.addProc(crusaderBuffOHProc);
-        player.oh.temporaryEnchant = denseDamageStone;
     }
 
     const boss = new Unit(63, 4691 - 2250 - 640 - 505 - 600); // sunder, cor, ff, annih
@@ -45,30 +39,46 @@ export function setupPlayer(race: Race, stats: StatValues, equipment: ItemWithSl
     return player;
 }
 
-export function equipmentIndicesToItem(equipment: [number, ItemSlot][]): ItemWithSlot[] {
-    const res: ItemWithSlot[] = [];
-    
-    for (let [idx, slot] of equipment) {
-        if (items[idx]) {
-            res.push([items[idx], slot]);
+export function lookupMap<K,V>(slotToIndex: Map<K, number>, lookup: V[]): Map<K, V> {
+    const res = new Map<K,V>();
+
+    for (let [slot, idx] of slotToIndex) {
+        if (lookup[idx]) {
+            res.set(slot, lookup[idx]);
         } else {
-            console.log('bad item index', idx);
+            console.log('bad index', idx, lookup);
         }
     }
 
     return res;
 }
 
-export function buffIndicesToBuff(buffIndices: number[]): Buff[] {
-    const res: Buff[] = [];
+export function lookupArray<V>(indices: number[], lookup: V[]): V[] {
+    const res: V[] = [];
 
-    for (let idx of buffIndices) {
-        if (buffs[idx]) {
-            res.push(buffs[idx]);
+    for (let idx of indices) {
+        if (lookup[idx]) {
+            res.push(lookup[idx]);
         } else {
-            console.log('bad buff index', idx);
+            console.log('bad index', idx, lookup);
         }
     }
     
     return res;
+}
+
+export function lookupItems(map: Map<ItemSlot, number>) {
+    return lookupMap(map, items);
+}
+
+export function lookupEnchants(map: Map<ItemSlot, number>) {
+    return lookupMap(map, enchants);
+}
+
+export function lookupTemporaryEnchants(map: Map<ItemSlot, number>) {
+    return lookupMap(map, temporaryEnchants);
+}
+
+export function lookupBuffs(indices: number[]) {
+    return lookupArray(indices, buffs);
 }

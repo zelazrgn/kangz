@@ -63,7 +63,7 @@ export class Player extends Unit {
             return equiped;
         }
     }
-    equip(item, slot) {
+    equip(slot, item, enchant, temporaryEnchant) {
         if (this.items.has(slot)) {
             console.error(`already have item in slot ${ItemSlot[slot]}`);
             return;
@@ -75,8 +75,11 @@ export class Player extends Unit {
         if (item.stats) {
             this.buffManager.baseStats.add(item.stats);
         }
+        if (enchant && enchant.stats) {
+            this.buffManager.baseStats.add(enchant.stats);
+        }
         if (isWeapon(item)) {
-            this.items.set(slot, new WeaponEquiped(item, this));
+            this.items.set(slot, new WeaponEquiped(item, this, enchant, temporaryEnchant));
         }
         else {
             this.items.set(slot, new ItemEquiped(item, this));
@@ -95,7 +98,7 @@ export class Player extends Unit {
         });
     }
     calculateWeaponSkillValue(is_mh, spell) {
-        if (spell && spell.type == SpellType.PHYSICAL) {
+        if (spell && spell.type !== SpellType.PHYSICAL_WEAPON) {
             return this.maxSkillForLevel;
         }
         const weapon = is_mh ? this.mh : this.oh;
@@ -139,9 +142,15 @@ export class Player extends Unit {
         if (LH_CORE_BUG && spell && spell.type == SpellType.PHYSICAL) {
             spell = undefined;
         }
-        const skillBonus = 0.04 * (this.calculateWeaponSkillValue(is_mh, spell) - victim.maxSkillForLevel);
         let crit = this.buffManager.stats.crit;
         crit += this.buffManager.stats.agi * this.buffManager.stats.statMult / 20;
+        if (!spell || spell.type == SpellType.PHYSICAL_WEAPON) {
+            const weapon = is_mh ? this.mh : this.oh;
+            if (weapon.temporaryEnchant && weapon.temporaryEnchant.stats && weapon.temporaryEnchant.stats.crit) {
+                crit += weapon.temporaryEnchant.stats.crit;
+            }
+        }
+        const skillBonus = 0.04 * (this.calculateWeaponSkillValue(is_mh, spell) - victim.maxSkillForLevel);
         crit += skillBonus;
         return crit;
     }

@@ -1,6 +1,7 @@
 import { Player } from "./player.js";
-import { StatValues } from "./stats.js";
+import { StatValues, Stats } from "./stats.js";
 import { Proc, Spell, LearnedSpell } from "./spell.js";
+import { EnchantDescription } from "./data/enchants.js";
 
 export enum ItemSlot {
     MAINHAND = 1 << 0,
@@ -21,6 +22,46 @@ export enum ItemSlot {
     RING2 = 1 << 15,
     RANGED = 1 << 16,
 }
+
+export const itemSlotHasEnchant: {[TKey in ItemSlot]: boolean} = {
+    [ItemSlot.MAINHAND]: true,
+    [ItemSlot.OFFHAND]: true,
+    [ItemSlot.TRINKET1]: false,
+    [ItemSlot.TRINKET2]: false,
+    [ItemSlot.HEAD]: true,
+    [ItemSlot.NECK]: false,
+    [ItemSlot.SHOULDER]: true,
+    [ItemSlot.BACK]: true,
+    [ItemSlot.CHEST]: true,
+    [ItemSlot.WRIST]: true,
+    [ItemSlot.HANDS]: true,
+    [ItemSlot.WAIST]: false,
+    [ItemSlot.LEGS]: true,
+    [ItemSlot.FEET]: true,
+    [ItemSlot.RING1]: false,
+    [ItemSlot.RING2]: false,
+    [ItemSlot.RANGED]: false,
+};
+
+export const itemSlotHasTemporaryEnchant: {[TKey in ItemSlot]: boolean} = {
+    [ItemSlot.MAINHAND]: true,
+    [ItemSlot.OFFHAND]: true,
+    [ItemSlot.TRINKET1]: false,
+    [ItemSlot.TRINKET2]: false,
+    [ItemSlot.HEAD]: false,
+    [ItemSlot.NECK]: false,
+    [ItemSlot.SHOULDER]: false,
+    [ItemSlot.BACK]: false,
+    [ItemSlot.CHEST]: false,
+    [ItemSlot.WRIST]: false,
+    [ItemSlot.HANDS]: false,
+    [ItemSlot.WAIST]: false,
+    [ItemSlot.LEGS]: false,
+    [ItemSlot.FEET]: false,
+    [ItemSlot.RING1]: false,
+    [ItemSlot.RING2]: false,
+    [ItemSlot.RANGED]: false,
+};
 
 export interface ItemDescription {
     name: string,
@@ -79,24 +120,14 @@ export class ItemEquiped {
     }
 }
 
-export class TemporaryWeaponEnchant {
-    stats?: StatValues;
-    proc?: Proc;
-
-    constructor(stats?: StatValues, proc?: Proc) {
-        this.stats = stats;
-        this.proc = proc;
-    }
-}
-
 export class WeaponEquiped extends ItemEquiped {
     weapon: WeaponDescription;
     nextSwingTime: number;
-    procs: Proc[] = [];
-    player: Player;
-    temporaryEnchant?: TemporaryWeaponEnchant;
+    protected procs: Proc[] = [];
+    protected player: Player;
+    public temporaryEnchant?: EnchantDescription;
 
-    constructor(item: WeaponDescription, player: Player) {
+    constructor(item: WeaponDescription, player: Player, enchant?: EnchantDescription, temporaryEnchant?: EnchantDescription) {
         super(item, player);
         this.weapon = item;
         
@@ -104,7 +135,12 @@ export class WeaponEquiped extends ItemEquiped {
             this.addProc(item.onhit)
         }
 
+        if (enchant && enchant.proc) {
+            this.addProc(enchant.proc);
+        }
+
         this.player = player;
+        this.temporaryEnchant = temporaryEnchant;
 
         this.nextSwingTime = 100; // TODO - need to reset this properly if ever want to simulate fights where you run out
     }

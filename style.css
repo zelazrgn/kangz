@@ -67,6 +67,12 @@ option {
     text-align: right;
 }
 
+#items select.enchant, #items select.temporaryEnchant {
+    grid-column: 2/3;
+    width: 95%;
+    justify-self: end;
+}
+
 label {
     white-space: nowrap;
     text-transform: capitalize;
@@ -155,6 +161,17 @@ label {
 
 .simDetail {
     font-size: 12px;
+}
+
+.simDetail.equipment {
+    display: grid;
+    grid-template-columns: min-content auto;
+    grid-column-gap: 10px;
+}
+
+.simDetail.equipment>div:nth-child(2n+1) {
+    text-align: right;
+    text-transform: capitalize;
 }
 
 .chosenBuffs, .equipedItems {

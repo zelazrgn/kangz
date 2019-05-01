@@ -1,9 +1,10 @@
-import { items, getIndexForItemName } from "./data/items.js";
-import { Stats } from "./stats.js";
-import { ItemSlot } from "./item.js";
-import { setupPlayer, equipmentIndicesToItem, buffIndicesToBuff } from "./simulation_utils.js";
-import { WorkerInterface } from "./worker_event_interface.js";
+import { items } from "./data/items.js";
+import { enchants, temporaryEnchants } from "./data/enchants.js";
 import { buffs } from "./data/spells.js";
+import { Stats } from "./stats.js";
+import { ItemSlot, itemSlotHasEnchant, itemSlotHasTemporaryEnchant } from "./item.js";
+import { setupPlayer, lookupItems, lookupEnchants, lookupTemporaryEnchants, lookupBuffs } from "./simulation_utils.js";
+import { WorkerInterface } from "./worker_event_interface.js";
 import { Race } from "./player.js";
 const realtimeEl = document.getElementById('realtime');
 const statContainerEL = document.getElementById('stats');
@@ -35,6 +36,12 @@ raceEl.addEventListener('change', () => {
             buffInputEls[idx].checked = race === Race.HUMAN;
         }
     }
+    if (race === Race.ORC) {
+        setSelect(temporaryEnchantEls, ItemSlot.MAINHAND, lookupByName(temporaryEnchants, "Windfury"));
+    }
+    else {
+        setSelect(temporaryEnchantEls, ItemSlot.MAINHAND, lookupByName(temporaryEnchants, "Elemental Sharpening Stone"));
+    }
     updateStats();
 });
 for (let el of statContainerEL.getElementsByTagName("input")) {
@@ -42,8 +49,10 @@ for (let el of statContainerEL.getElementsByTagName("input")) {
     el.addEventListener("input", updateStats);
 }
 const itemsEl = document.getElementById('items');
-const categoryEls = new Map();
-for (let itemSlot of [
+const equipmentEls = new Map();
+const enchantEls = new Map();
+const temporaryEnchantEls = new Map();
+const ITEM_SLOTS = [
     ItemSlot.MAINHAND,
     ItemSlot.OFFHAND,
     ItemSlot.RANGED,
@@ -61,14 +70,36 @@ for (let itemSlot of [
     ItemSlot.RING2,
     ItemSlot.TRINKET1,
     ItemSlot.TRINKET2,
-]) {
-    categoryEls.set(itemSlot, document.createElement('select'));
+];
+function addNoneOption(selectEl) {
+    const option = document.createElement('option');
+    option.textContent = 'None';
+    selectEl.appendChild(option);
+}
+for (let itemSlot of ITEM_SLOTS) {
+    const selectEl = document.createElement('select');
+    equipmentEls.set(itemSlot, selectEl);
+    if (itemSlot !== ItemSlot.MAINHAND) {
+        addNoneOption(selectEl);
+    }
+    if (itemSlotHasEnchant[itemSlot]) {
+        const selectEl = document.createElement('select');
+        selectEl.classList.add('enchant');
+        enchantEls.set(itemSlot, selectEl);
+        addNoneOption(selectEl);
+    }
+    if (itemSlotHasTemporaryEnchant[itemSlot]) {
+        const selectEl = document.createElement('select');
+        selectEl.classList.add('temporaryEnchant');
+        temporaryEnchantEls.set(itemSlot, selectEl);
+        addNoneOption(selectEl);
+    }
 }
 function addItemToCategories(item, idx) {
     for (let i = 1; i <= item.slot; i <<= 1) {
         if (item.slot & i) {
-            if (categoryEls.has(i)) {
-                const categoryEl = categoryEls.get(i);
+            if (equipmentEls.has(i)) {
+                const categoryEl = equipmentEls.get(i);
                 const option = document.createElement('option');
                 option.value = `${idx}`;
                 option.textContent = item.name;
@@ -77,31 +108,97 @@ function addItemToCategories(item, idx) {
         }
     }
 }
-{
-    const option = document.createElement('option');
-    option.textContent = 'None';
-    categoryEls.get(ItemSlot.OFFHAND).appendChild(option);
+function addEnchantToCategories(enchant, idx) {
+    for (let i = 1; i <= enchant.slot; i <<= 1) {
+        if (enchant.slot & i) {
+            if (enchantEls.has(i)) {
+                const categoryEl = enchantEls.get(i);
+                const option = document.createElement('option');
+                option.value = `${idx}`;
+                option.textContent = enchant.name;
+                categoryEl.appendChild(option);
+            }
+        }
+    }
+}
+function addTemporaryEnchantToCategories(enchant, idx) {
+    for (let i = 1; i <= enchant.slot; i <<= 1) {
+        if (enchant.slot & i) {
+            if (temporaryEnchantEls.has(i)) {
+                const categoryEl = temporaryEnchantEls.get(i);
+                const option = document.createElement('option');
+                option.value = `${idx}`;
+                option.textContent = enchant.name;
+                categoryEl.appendChild(option);
+            }
+        }
+    }
 }
 for (let [idx, item] of items.entries()) {
     addItemToCategories(item, idx);
 }
-for (let [slot, categoryEl] of categoryEls) {
+for (let [idx, enchant] of enchants.entries()) {
+    addEnchantToCategories(enchant, idx);
+}
+for (let [idx, temporaryEnchant] of temporaryEnchants.entries()) {
+    addTemporaryEnchantToCategories(temporaryEnchant, idx);
+}
+for (let [slot, equipmentEl] of equipmentEls) {
     const label = document.createElement('label');
     label.textContent = ItemSlot[slot].toLowerCase();
     itemsEl.appendChild(label);
-    itemsEl.appendChild(categoryEl);
-    categoryEl.addEventListener('change', updateStats);
+    itemsEl.appendChild(equipmentEl);
+    const enchantCategoryEl = enchantEls.get(slot);
+    if (enchantCategoryEl) {
+        itemsEl.appendChild(enchantCategoryEl);
+        enchantCategoryEl.addEventListener('change', updateStats);
+    }
+    const temporaryEnchantCategoryEl = temporaryEnchantEls.get(slot);
+    if (temporaryEnchantCategoryEl) {
+        itemsEl.appendChild(temporaryEnchantCategoryEl);
+        temporaryEnchantCategoryEl.addEventListener('change', updateStats);
+    }
+    equipmentEl.addEventListener('change', updateStats);
 }
-function setDefault(slot, itemName) {
-    categoryEls.get(slot).value = '' + getIndexForItemName(itemName);
+export function lookupByName(data, name) {
+    for (let [idx, item] of data.entries()) {
+        if (item.name === name) {
+            return idx;
+        }
+    }
 }
-setDefault(ItemSlot.MAINHAND, "Empyrean Demolisher");
-setDefault(ItemSlot.OFFHAND, "Anubisath Warhammer");
-setDefault(ItemSlot.RING2, "Quick Strike Ring");
-setDefault(ItemSlot.TRINKET2, "Hand of Justice");
-setDefault(ItemSlot.HANDS, "Gauntlets of Annihilation");
-setDefault(ItemSlot.FEET, "Chromatic Boots");
-setDefault(ItemSlot.BACK, "Drape of Unyielding Strength");
+function setSelect(selectEls, key, value) {
+    selectEls.get(key).value = '' + value;
+}
+const DEFAULT = new Map();
+DEFAULT.set(ItemSlot.MAINHAND, ["Empyrean Demolisher", "Crusader MH", "Elemental Sharpening Stone"]);
+DEFAULT.set(ItemSlot.OFFHAND, ["Anubisath Warhammer", "Crusader OH", "+8 Damage"]);
+DEFAULT.set(ItemSlot.RANGED, ["Striker's Mark"]);
+DEFAULT.set(ItemSlot.HEAD, ["Lionheart Helm", "1 Haste"]);
+DEFAULT.set(ItemSlot.NECK, ["Barbed Choker"]);
+DEFAULT.set(ItemSlot.SHOULDER, ["Conqueror's Spaulders", "ZG Enchant (30 AP)"]);
+DEFAULT.set(ItemSlot.BACK, ["Drape of Unyielding Strength", "3 Agility"]);
+DEFAULT.set(ItemSlot.CHEST, ["Breastplate of Annihilation", "Greater Stats (+4)"]);
+DEFAULT.set(ItemSlot.WRIST, ["Hive Defiler Wristguards", "9 Strength"]);
+DEFAULT.set(ItemSlot.HANDS, ["Gauntlets of Annihilation", "15 Agility"]);
+DEFAULT.set(ItemSlot.WAIST, ["Onslaught Girdle"]);
+DEFAULT.set(ItemSlot.LEGS, ["Titanic Leggings", "1 Haste"]);
+DEFAULT.set(ItemSlot.FEET, ["Chromatic Boots", "Run Speed"]);
+DEFAULT.set(ItemSlot.RING1, ["Don Julio's Band"]);
+DEFAULT.set(ItemSlot.RING2, ["Quick Strike Ring"]);
+DEFAULT.set(ItemSlot.TRINKET1, ["Badge of the Swarmguard"]);
+DEFAULT.set(ItemSlot.TRINKET2, ["Diamond Flask"]);
+for (let [slot, [itemName, enchantName, temporaryEnchantName]] of DEFAULT) {
+    if (itemName) {
+        setSelect(equipmentEls, slot, lookupByName(items, itemName));
+    }
+    if (enchantName) {
+        setSelect(enchantEls, slot, lookupByName(enchants, enchantName));
+    }
+    if (temporaryEnchantName) {
+        setSelect(temporaryEnchantEls, slot, lookupByName(temporaryEnchants, temporaryEnchantName));
+    }
+}
 const buffInputEls = [];
 for (let [idx, buff] of buffs.entries()) {
     const race = getRace();
@@ -139,20 +236,38 @@ function setBuffs(buffs) {
         }
     }
 }
-function getEquipmentIndices() {
-    const res = [];
-    for (let [slot, categoryEl] of categoryEls) {
-        const item = items[parseInt(categoryEl.value)];
+function getSelectIndices(els) {
+    const res = new Map();
+    for (let [key, selectEl] of els) {
+        const item = items[parseInt(selectEl.value)];
         if (item) {
-            res.push([parseInt(categoryEl.value), slot]);
+            res.set(key, parseInt(selectEl.value));
         }
     }
     return res;
 }
-function setEquipment(equipment) {
-    for (let [index, slot] of equipment) {
-        categoryEls.get(slot).value = '' + index;
+function setSelectIndices(els, indices) {
+    for (let [key, index] of indices) {
+        els.get(key).value = '' + index;
     }
+}
+function getEquipmentIndices() {
+    return getSelectIndices(equipmentEls);
+}
+function setEquipment(equipment) {
+    setSelectIndices(equipmentEls, equipment);
+}
+function getEnchantIndices() {
+    return getSelectIndices(enchantEls);
+}
+function setEnchants(enchants) {
+    setSelectIndices(enchantEls, enchants);
+}
+function getTemporaryEnchantIndices() {
+    return getSelectIndices(temporaryEnchantEls);
+}
+function setTemporaryEnchants(temporaryEnchants) {
+    setSelectIndices(temporaryEnchantEls, temporaryEnchants);
 }
 function getStats() {
     return {
@@ -183,7 +298,7 @@ function formatStats(stats) {
 }
 function updateStats() {
     const player = (() => {
-        const player = setupPlayer(getRace(), getStats(), equipmentIndicesToItem(getEquipmentIndices()), buffIndicesToBuff(getBuffs()), undefined);
+        const player = setupPlayer(getRace(), getStats(), lookupItems(getEquipmentIndices()), lookupEnchants(getEnchantIndices()), lookupTemporaryEnchants(getTemporaryEnchantIndices()), lookupBuffs(getBuffs()), undefined);
         player.buffManager.update(0);
         return player;
     })();
@@ -310,12 +425,33 @@ function saveInstantSim() {
     fightSettings.textContent = `fight length: ${parseInt(fightLengthEl.value)}, her rr: ${parseInt(heroicStrikeRageReqEl.value)}, ham rr: ${parseInt(hamstringRageReqEl.value)}, bt rl:${parseInt(bloodthirstExecRageLimitEl.value)}`;
     simEl.append(fightSettings);
     const itemsEl = document.createElement('div');
-    itemsEl.classList.add('simDetail', 'equipedItems');
-    itemsEl.textContent = 'Items: ' + equipmentIndicesToItem(getEquipmentIndices()).map(([item, slot]) => item.name).join(', ');
+    itemsEl.classList.add('simDetail', 'equipment');
+    const equipment = lookupItems(simdisc.equipment);
+    const enchants = lookupEnchants(simdisc.enchants);
+    const temporaryEnchants = lookupTemporaryEnchants(simdisc.temporaryEnchants);
+    for (let slot of ITEM_SLOTS) {
+        const slotNameEl = document.createElement('div');
+        slotNameEl.innerHTML = `${ItemSlot[slot].toLowerCase()}`;
+        itemsEl.append(slotNameEl);
+        const itemEl = document.createElement('div');
+        const item = equipment.get(slot);
+        if (item) {
+            itemEl.innerHTML += ` ${item.name}`;
+            const enchant = enchants.get(slot);
+            if (enchant) {
+                itemEl.innerHTML += ` ${enchant.name}`;
+            }
+            const temporaryEnchant = temporaryEnchants.get(slot);
+            if (temporaryEnchant) {
+                itemEl.innerHTML += ` ${temporaryEnchant.name}`;
+            }
+        }
+        itemsEl.append(itemEl);
+    }
     simEl.append(itemsEl);
     const buffsEl = document.createElement('div');
     buffsEl.classList.add('simDetail', 'chosenBuffs');
-    buffsEl.textContent = 'Buffs: ' + buffIndicesToBuff(getBuffs()).map((buff) => buff.name).join(', ');
+    buffsEl.textContent = 'Buffs: ' + lookupBuffs(getBuffs()).map((buff) => buff.name).join(', ');
     simEl.append(buffsEl);
     if (simdisc.realtime) {
         const logEl = document.createElement('div');
@@ -383,6 +519,8 @@ function startInstantSim(forceSave = false) {
         race: getRace(),
         stats: getStats(),
         equipment: getEquipmentIndices(),
+        enchants: getEnchantIndices(),
+        temporaryEnchants: getTemporaryEnchantIndices(),
         buffs: getBuffs(),
         fightLength: parseInt(fightLengthEl.value),
         realtime: realtime,

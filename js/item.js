@@ -19,6 +19,44 @@ export var ItemSlot;
     ItemSlot[ItemSlot["RING2"] = 32768] = "RING2";
     ItemSlot[ItemSlot["RANGED"] = 65536] = "RANGED";
 })(ItemSlot || (ItemSlot = {}));
+export const itemSlotHasEnchant = {
+    [ItemSlot.MAINHAND]: true,
+    [ItemSlot.OFFHAND]: true,
+    [ItemSlot.TRINKET1]: false,
+    [ItemSlot.TRINKET2]: false,
+    [ItemSlot.HEAD]: true,
+    [ItemSlot.NECK]: false,
+    [ItemSlot.SHOULDER]: true,
+    [ItemSlot.BACK]: true,
+    [ItemSlot.CHEST]: true,
+    [ItemSlot.WRIST]: true,
+    [ItemSlot.HANDS]: true,
+    [ItemSlot.WAIST]: false,
+    [ItemSlot.LEGS]: true,
+    [ItemSlot.FEET]: true,
+    [ItemSlot.RING1]: false,
+    [ItemSlot.RING2]: false,
+    [ItemSlot.RANGED]: false,
+};
+export const itemSlotHasTemporaryEnchant = {
+    [ItemSlot.MAINHAND]: true,
+    [ItemSlot.OFFHAND]: true,
+    [ItemSlot.TRINKET1]: false,
+    [ItemSlot.TRINKET2]: false,
+    [ItemSlot.HEAD]: false,
+    [ItemSlot.NECK]: false,
+    [ItemSlot.SHOULDER]: false,
+    [ItemSlot.BACK]: false,
+    [ItemSlot.CHEST]: false,
+    [ItemSlot.WRIST]: false,
+    [ItemSlot.HANDS]: false,
+    [ItemSlot.WAIST]: false,
+    [ItemSlot.LEGS]: false,
+    [ItemSlot.FEET]: false,
+    [ItemSlot.RING1]: false,
+    [ItemSlot.RING2]: false,
+    [ItemSlot.RANGED]: false,
+};
 export var WeaponType;
 (function (WeaponType) {
     WeaponType[WeaponType["MACE"] = 0] = "MACE";
@@ -51,21 +89,19 @@ export class ItemEquiped {
         }
     }
 }
-export class TemporaryWeaponEnchant {
-    constructor(stats, proc) {
-        this.stats = stats;
-        this.proc = proc;
-    }
-}
 export class WeaponEquiped extends ItemEquiped {
-    constructor(item, player) {
+    constructor(item, player, enchant, temporaryEnchant) {
         super(item, player);
         this.procs = [];
         this.weapon = item;
         if (item.onhit) {
             this.addProc(item.onhit);
         }
+        if (enchant && enchant.proc) {
+            this.addProc(enchant.proc);
+        }
         this.player = player;
+        this.temporaryEnchant = temporaryEnchant;
         this.nextSwingTime = 100;
     }
     get plusDamage() {

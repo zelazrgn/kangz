@@ -1,6 +1,6 @@
 import { MainThreadInterface } from "./worker_event_interface.js";
 import { Simulation } from "./simulation.js";
-import { buffIndicesToBuff, equipmentIndicesToItem } from "./simulation_utils.js";
+import { lookupItems, lookupBuffs, lookupEnchants, lookupTemporaryEnchants } from "./simulation_utils.js";
 import { generateChooseAction } from "./warrior_ai.js";
 const mainThreadInterface = MainThreadInterface.instance;
 let currentSim = undefined;
@@ -15,7 +15,7 @@ mainThreadInterface.addEventListener('simulate', (data) => {
             });
         };
     }
-    currentSim = new Simulation(simdesc.race, simdesc.stats, equipmentIndicesToItem(simdesc.equipment), buffIndicesToBuff(simdesc.buffs), generateChooseAction(simdesc.heroicStrikeRageReq, simdesc.hamstringRageReq, simdesc.bloodthirstExecRageLimit), simdesc.fightLength, simdesc.realtime, logFunction);
+    currentSim = new Simulation(simdesc.race, simdesc.stats, lookupItems(simdesc.equipment), lookupEnchants(simdesc.enchants), lookupTemporaryEnchants(simdesc.temporaryEnchants), lookupBuffs(simdesc.buffs), generateChooseAction(simdesc.heroicStrikeRageReq, simdesc.hamstringRageReq, simdesc.bloodthirstExecRageLimit), simdesc.fightLength, simdesc.realtime, logFunction);
     currentSim.start();
     setInterval(() => {
         if (currentSim && !currentSim.paused) {

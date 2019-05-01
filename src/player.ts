@@ -5,6 +5,7 @@ import { BuffManager } from "./buff.js";
 import { StatValues, Stats } from "./stats.js";
 import { Spell, Proc, LearnedSwingSpell, SpellType, SpellDamage } from "./spell.js";
 import { LH_CORE_BUG } from "./sim_settings.js";
+import { EnchantDescription } from "./data/enchants.js";
 
 export enum Race {
     HUMAN,
@@ -90,7 +91,7 @@ export class Player extends Unit {
         }
     }
 
-    equip(item: ItemDescription, slot: ItemSlot) {
+    equip(slot: ItemSlot, item: ItemDescription, enchant?: EnchantDescription, temporaryEnchant?: EnchantDescription) {
         if (this.items.has(slot)) {
             console.error(`already have item in slot ${ItemSlot[slot]}`)
             return;
@@ -105,9 +106,14 @@ export class Player extends Unit {
             this.buffManager.baseStats.add(item.stats);
         }
 
+        if (enchant && enchant.stats) {
+            this.buffManager.baseStats.add(enchant.stats);
+        }
+
         // TODO - handle equipping 2H (and how that disables OH)
+        // TODO - assuming only weapon enchants can have procs
         if (isWeapon(item)) {
-            this.items.set(slot, new WeaponEquiped(item, this));
+            this.items.set(slot, new WeaponEquiped(item, this, enchant, temporaryEnchant));
         } else {
             this.items.set(slot, new ItemEquiped(item, this));
         }
@@ -131,7 +137,7 @@ export class Player extends Unit {
     }
 
     protected calculateWeaponSkillValue(is_mh: boolean, spell?: Spell) {
-        if (spell && spell.type == SpellType.PHYSICAL) {
+        if (spell && spell.type !== SpellType.PHYSICAL_WEAPON) {
             return this.maxSkillForLevel;
         }
 
@@ -184,11 +190,18 @@ export class Player extends Unit {
             spell = undefined;
         }
 
-        const skillBonus = 0.04 * (this.calculateWeaponSkillValue(is_mh, spell) - victim.maxSkillForLevel);
-
         let crit = this.buffManager.stats.crit;
         crit += this.buffManager.stats.agi * this.buffManager.stats.statMult / 20;
 
+        if (!spell || spell.type == SpellType.PHYSICAL_WEAPON) {
+            const weapon = is_mh ? this.mh! : this.oh!;
+
+            if (weapon.temporaryEnchant && weapon.temporaryEnchant.stats && weapon.temporaryEnchant.stats.crit) {
+                crit += weapon.temporaryEnchant.stats.crit;
+            }
+        }
+
+        const skillBonus = 0.04 * (this.calculateWeaponSkillValue(is_mh, spell) - victim.maxSkillForLevel);
         crit += skillBonus;
 
         return crit;

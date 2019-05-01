@@ -3,12 +3,13 @@ import { ItemDescription, ItemSlot } from "./item.js";
 import { Buff } from "./buff.js";
 import { LogFunction, Player, Race, DamageLog } from "./player.js";
 import { setupPlayer } from "./simulation_utils.js";
+import { EnchantDescription } from "./data/enchants.js";
 
 export type ItemWithSlot = [ItemDescription, ItemSlot];
 
 // TODO - change this interface so that ChooseAction cannot screw up the sim or cheat
 // e.g. ChooseAction shouldn't cast spells at a current time
-export type ChooseAction = (player: Player, time: number, fightLength: number, canExecute: boolean) => number|undefined;
+export type ChooseAction = (player: Player, time: number, fightLength: number, canExecute: boolean) => number;
 
 export const EXECUTE_PHASE_RATIO = 0.15; // last 15% of the time is execute phase
 
@@ -18,8 +19,8 @@ class Fight {
     fightLength: number;
     duration = 0;
 
-    constructor(race: Race, stats: StatValues, equipment: ItemWithSlot[], buffs: Buff[], chooseAction: ChooseAction, fightLength = 60, log?: LogFunction) {
-        this.player = setupPlayer(race, stats, equipment, buffs, log);
+    constructor(race: Race, stats: StatValues, equipment: Map<ItemSlot, ItemDescription>, enchants: Map<ItemSlot, EnchantDescription>, temporaryEnchants: Map<ItemSlot, EnchantDescription>, buffs: Buff[], chooseAction: ChooseAction, fightLength = 60, log?: LogFunction) {
+        this.player = setupPlayer(race, stats, equipment, enchants, temporaryEnchants, buffs, log);
         this.chooseAction = chooseAction;
         this.fightLength = (fightLength + Math.random() * 4 - 2) * 1000;
     }
@@ -69,7 +70,7 @@ class Fight {
             this.duration = Math.min(nextSwingTime, this.player.buffManager.nextOverTimeUpdate);
         }
 
-        if (waitingForTime && waitingForTime < this.duration) {
+        if (waitingForTime < this.duration) {
             this.duration = waitingForTime;
         }
 
@@ -129,7 +130,9 @@ export type StatusHandler = (status: SimulationSummary) => void;
 export class Simulation {
     race: Race;
     stats: StatValues;
-    equipment: ItemWithSlot[];
+    equipment: Map<ItemSlot, ItemDescription>;
+    enchants: Map<ItemSlot, EnchantDescription>;
+    temporaryEnchants: Map<ItemSlot, EnchantDescription>;
     buffs: Buff[];
     chooseAction: ChooseAction;
     protected fightLength: number;
@@ -145,10 +148,12 @@ export class Simulation {
 
     protected cachedSummmary: SimulationSummary = { normalDamage: 0, execDamage: 0, normalDuration: 0, execDuration: 0, powerLost: 0, fights: 0 };
 
-    constructor(race: Race, stats: StatValues, equipment: ItemWithSlot[], buffs: Buff[], chooseAction: ChooseAction, fightLength = 60, realtime = false, log?: LogFunction) {
+    constructor(race: Race, stats: StatValues, equipment: Map<ItemSlot, ItemDescription>, enchants: Map<ItemSlot, EnchantDescription>, temporaryEnchants: Map<ItemSlot, EnchantDescription>, buffs: Buff[], chooseAction: ChooseAction, fightLength = 60, realtime = false, log?: LogFunction) {
         this.race = race;
         this.stats = stats;
         this.equipment = equipment;
+        this.enchants = enchants;
+        this.temporaryEnchants = temporaryEnchants;
         this.buffs = buffs;
         this.chooseAction = chooseAction;
         this.fightLength = fightLength;
@@ -232,7 +237,7 @@ export class Simulation {
                     return;
                 }
 
-                this.currentFight = new fightClass(this.race, this.stats, this.equipment, this.buffs, this.chooseAction, this.fightLength, this.realtime ? this.log : undefined);
+                this.currentFight = new fightClass(this.race, this.stats, this.equipment, this.enchants, this.temporaryEnchants, this.buffs, this.chooseAction, this.fightLength, this.realtime ? this.log : undefined);
                 this.currentFight.run().then((res) => {
                     this.fightResults.push(res);
                     count++;

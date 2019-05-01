@@ -1,25 +1,29 @@
-import { ItemSlot } from "./item";
+import { SpellBuff } from "./spell";
 export function generateChooseAction(heroicStrikeRageReq, hamstringRageReq, bloodthirstExecRageLimit) {
     return (player, time, fightLength, executePhase) => {
         const warrior = player;
         const timeRemainingSeconds = (fightLength - time) / 1000;
-        const useItemByName = (slot, name) => {
-            const item = player.items.get(slot);
-            if (item && item.item.name === name && item.onuse && item.onuse.canCast(time)) {
-                return item.onuse.cast(time);
+        let waitingForTime = Number.POSITIVE_INFINITY;
+        for (let [_, item] of player.items) {
+            if (item.onuse && item.onuse.canCast(time)) {
+                if (item.onuse.spell instanceof SpellBuff) {
+                    if (timeRemainingSeconds <= item.onuse.spell.buff.duration) {
+                        item.onuse.cast(time);
+                    }
+                    else {
+                        waitingForTime = Math.min(waitingForTime, fightLength - item.onuse.spell.buff.duration * 1000);
+                    }
+                }
             }
-        };
+        }
         if (warrior.rage < 30 && warrior.bloodRage.canCast(time)) {
             warrior.bloodRage.cast(time);
         }
-        let waitingForTime;
         if (warrior.nextGCDTime <= time) {
             if (warrior.deathWish.canCast(time) &&
                 (timeRemainingSeconds <= 30
                     || (timeRemainingSeconds - warrior.deathWish.spell.cooldown) > 30)) {
                 warrior.deathWish.cast(time);
-                useItemByName(ItemSlot.TRINKET1, "Badge of the Swarmguard");
-                useItemByName(ItemSlot.TRINKET2, "Badge of the Swarmguard");
             }
             else if (executePhase && warrior.bloodthirst.canCast(time) && warrior.rage < bloodthirstExecRageLimit) {
                 warrior.bloodthirst.cast(time);
@@ -32,7 +36,7 @@ export function generateChooseAction(heroicStrikeRageReq, hamstringRageReq, bloo
             }
             else if (warrior.bloodthirst.timeRemaining(time) < 1.5 + (warrior.latency / 1000)) {
                 if (warrior.bloodthirst.cooldown > time) {
-                    waitingForTime = warrior.bloodthirst.cooldown;
+                    waitingForTime = Math.min(waitingForTime, warrior.bloodthirst.cooldown);
                 }
             }
             else if (warrior.whirlwind.canCast(time)) {
@@ -40,7 +44,7 @@ export function generateChooseAction(heroicStrikeRageReq, hamstringRageReq, bloo
             }
             else if (warrior.whirlwind.timeRemaining(time) < 1.5 + (warrior.latency / 1000)) {
                 if (warrior.whirlwind.cooldown > time) {
-                    waitingForTime = warrior.whirlwind.cooldown;
+                    waitingForTime = Math.min(waitingForTime, warrior.whirlwind.cooldown);
                 }
             }
             else if (warrior.rage >= hamstringRageReq && warrior.hamstring.canCast(time)) {

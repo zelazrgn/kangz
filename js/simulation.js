@@ -1,9 +1,9 @@
 import { setupPlayer } from "./simulation_utils.js";
 export const EXECUTE_PHASE_RATIO = 0.15;
 class Fight {
-    constructor(race, stats, equipment, buffs, chooseAction, fightLength = 60, log) {
+    constructor(race, stats, equipment, enchants, temporaryEnchants, buffs, chooseAction, fightLength = 60, log) {
         this.duration = 0;
-        this.player = setupPlayer(race, stats, equipment, buffs, log);
+        this.player = setupPlayer(race, stats, equipment, enchants, temporaryEnchants, buffs, log);
         this.chooseAction = chooseAction;
         this.fightLength = (fightLength + Math.random() * 4 - 2) * 1000;
     }
@@ -40,7 +40,7 @@ class Fight {
         else {
             this.duration = Math.min(nextSwingTime, this.player.buffManager.nextOverTimeUpdate);
         }
-        if (waitingForTime && waitingForTime < this.duration) {
+        if (waitingForTime < this.duration) {
             this.duration = waitingForTime;
         }
         if (!isExecutePhase && beginExecuteTime < this.duration) {
@@ -82,7 +82,7 @@ class RealtimeFight extends Fight {
     }
 }
 export class Simulation {
-    constructor(race, stats, equipment, buffs, chooseAction, fightLength = 60, realtime = false, log) {
+    constructor(race, stats, equipment, enchants, temporaryEnchants, buffs, chooseAction, fightLength = 60, realtime = false, log) {
         this.requestStop = false;
         this._paused = false;
         this.fightResults = [];
@@ -90,6 +90,8 @@ export class Simulation {
         this.race = race;
         this.stats = stats;
         this.equipment = equipment;
+        this.enchants = enchants;
+        this.temporaryEnchants = temporaryEnchants;
         this.buffs = buffs;
         this.chooseAction = chooseAction;
         this.fightLength = fightLength;
@@ -159,7 +161,7 @@ export class Simulation {
                     setTimeout(outerloop, 0);
                     return;
                 }
-                this.currentFight = new fightClass(this.race, this.stats, this.equipment, this.buffs, this.chooseAction, this.fightLength, this.realtime ? this.log : undefined);
+                this.currentFight = new fightClass(this.race, this.stats, this.equipment, this.enchants, this.temporaryEnchants, this.buffs, this.chooseAction, this.fightLength, this.realtime ? this.log : undefined);
                 this.currentFight.run().then((res) => {
                     this.fightResults.push(res);
                     count++;

@@ -1,48 +1,54 @@
-import { Race } from "./player.js";
 import { Warrior } from "./warrior.js";
-import { crusaderBuffMHProc, crusaderBuffOHProc, buffs, windfuryEnchant, denseDamageStone } from "./data/spells.js";
 import { Unit } from "./unit.js";
+import { temporaryEnchants, enchants } from "./data/enchants.js";
 import { items } from "./data/items.js";
-export function setupPlayer(race, stats, equipment, buffs, log) {
+import { buffs } from "./data/spells.js";
+export function setupPlayer(race, stats, equipment, enchants, temporaryEnchant, buffs, log) {
     const player = new Warrior(race, stats, log);
-    for (let [item, slot] of equipment) {
-        player.equip(item, slot);
+    for (let [slot, item] of equipment) {
+        player.equip(slot, item, enchants.get(slot), temporaryEnchant.get(slot));
     }
     for (let buff of buffs) {
         player.buffManager.add(buff, 0);
-    }
-    player.mh.addProc(crusaderBuffMHProc);
-    player.mh.temporaryEnchant = race === Race.ORC ? windfuryEnchant : denseDamageStone;
-    if (player.oh) {
-        player.oh.addProc(crusaderBuffOHProc);
-        player.oh.temporaryEnchant = denseDamageStone;
     }
     const boss = new Unit(63, 4691 - 2250 - 640 - 505 - 600);
     player.target = boss;
     return player;
 }
-export function equipmentIndicesToItem(equipment) {
-    const res = [];
-    for (let [idx, slot] of equipment) {
-        if (items[idx]) {
-            res.push([items[idx], slot]);
+export function lookupMap(slotToIndex, lookup) {
+    const res = new Map();
+    for (let [slot, idx] of slotToIndex) {
+        if (lookup[idx]) {
+            res.set(slot, lookup[idx]);
         }
         else {
-            console.log('bad item index', idx);
+            console.log('bad index', idx, lookup);
         }
     }
     return res;
 }
-export function buffIndicesToBuff(buffIndices) {
+export function lookupArray(indices, lookup) {
     const res = [];
-    for (let idx of buffIndices) {
-        if (buffs[idx]) {
-            res.push(buffs[idx]);
+    for (let idx of indices) {
+        if (lookup[idx]) {
+            res.push(lookup[idx]);
         }
         else {
-            console.log('bad buff index', idx);
+            console.log('bad index', idx, lookup);
         }
     }
     return res;
+}
+export function lookupItems(map) {
+    return lookupMap(map, items);
+}
+export function lookupEnchants(map) {
+    return lookupMap(map, enchants);
+}
+export function lookupTemporaryEnchants(map) {
+    return lookupMap(map, temporaryEnchants);
+}
+export function lookupBuffs(indices) {
+    return lookupArray(indices, buffs);
 }
 //# sourceMappingURL=simulation_utils.js.map

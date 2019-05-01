@@ -1,6 +1,6 @@
 import {  MainThreadInterface } from "./worker_event_interface.js";
 import { Simulation } from "./simulation.js";
-import { SimulationDescription, buffIndicesToBuff, equipmentIndicesToItem } from "./simulation_utils.js";
+import { SimulationDescription, lookupItems, lookupBuffs, lookupEnchants, lookupTemporaryEnchants } from "./simulation_utils.js";
 import { LogFunction } from "./player.js";
 import { generateChooseAction } from "./warrior_ai.js";
 
@@ -23,8 +23,10 @@ mainThreadInterface.addEventListener('simulate', (data: any) => {
     }
 
     currentSim = new Simulation(simdesc.race, simdesc.stats,
-        equipmentIndicesToItem(simdesc.equipment),
-        buffIndicesToBuff(simdesc.buffs),
+        lookupItems(simdesc.equipment),
+        lookupEnchants(simdesc.enchants),
+        lookupTemporaryEnchants(simdesc.temporaryEnchants),
+        lookupBuffs(simdesc.buffs),
         generateChooseAction(simdesc.heroicStrikeRageReq, simdesc.hamstringRageReq, simdesc.bloodthirstExecRageLimit),
         simdesc.fightLength, simdesc.realtime, logFunction);
 

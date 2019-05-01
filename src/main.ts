@@ -1,9 +1,10 @@
-import { items, getIndexForItemName } from "./data/items.js";
-import { StatValues, Stats } from "./stats.js";
-import { ItemSlot, ItemDescription } from "./item.js";
-import { SimulationDescription, setupPlayer, equipmentIndicesToItem, buffIndicesToBuff } from "./simulation_utils.js";
-import { WorkerInterface } from "./worker_event_interface.js";
+import { items } from "./data/items.js";
+import { enchants, EnchantDescription, temporaryEnchants } from "./data/enchants.js";
 import { buffs } from "./data/spells.js";
+import { StatValues, Stats } from "./stats.js";
+import { ItemSlot, ItemDescription, itemSlotHasEnchant, itemSlotHasTemporaryEnchant } from "./item.js";
+import { SimulationDescription, setupPlayer, lookupItems, lookupEnchants, lookupTemporaryEnchants, lookupBuffs } from "./simulation_utils.js";
+import { WorkerInterface } from "./worker_event_interface.js";
 import { Race } from "./player.js";
 import { SimulationSummary } from "./simulation.js";
 
@@ -42,6 +43,12 @@ raceEl.addEventListener('change', () => {
         }
     }
 
+    if (race === Race.ORC) {
+        setSelect(temporaryEnchantEls, ItemSlot.MAINHAND, lookupByName(temporaryEnchants, "Windfury")!);
+    } else {
+        setSelect(temporaryEnchantEls, ItemSlot.MAINHAND, lookupByName(temporaryEnchants, "Elemental Sharpening Stone")!);
+    }
+
     updateStats();
 });
 
@@ -52,9 +59,11 @@ for (let el of statContainerEL.getElementsByTagName("input")) {
 
 const itemsEl = document.getElementById('items')!;
 
-const categoryEls: Map<ItemSlot, HTMLSelectElement> = new Map();
+const equipmentEls: Map<ItemSlot, HTMLSelectElement> = new Map();
+const enchantEls: Map<ItemSlot, HTMLSelectElement> = new Map();
+const temporaryEnchantEls: Map<ItemSlot, HTMLSelectElement> = new Map();
 
-for (let itemSlot of [
+const ITEM_SLOTS = [
     ItemSlot.MAINHAND,
     ItemSlot.OFFHAND,
     ItemSlot.RANGED,
@@ -72,15 +81,42 @@ for (let itemSlot of [
     ItemSlot.RING2,
     ItemSlot.TRINKET1,
     ItemSlot.TRINKET2,
-    ]) {
-        categoryEls.set(itemSlot, document.createElement('select'));
+];
+
+function addNoneOption(selectEl: HTMLSelectElement) {
+    const option = document.createElement('option');
+    option.textContent = 'None';
+    selectEl.appendChild(option);
+}
+
+for (let itemSlot of ITEM_SLOTS) {
+        const selectEl = document.createElement('select');
+        equipmentEls.set(itemSlot, selectEl);
+
+        if (itemSlot !== ItemSlot.MAINHAND) {
+            addNoneOption(selectEl);
+        }
+
+        if (<boolean>(<any>itemSlotHasEnchant)[itemSlot]) { // mapped type doesn't play with enum bit flag
+            const selectEl = document.createElement('select');
+            selectEl.classList.add('enchant');
+            enchantEls.set(itemSlot, selectEl);
+            addNoneOption(selectEl);
+        }
+
+        if (<boolean>(<any>itemSlotHasTemporaryEnchant)[itemSlot]) { // ...
+            const selectEl = document.createElement('select');
+            selectEl.classList.add('temporaryEnchant');
+            temporaryEnchantEls.set(itemSlot, selectEl);
+            addNoneOption(selectEl);
+        }
 }
 
 function addItemToCategories(item: ItemDescription, idx: number) {
     for (let i = 1; i <= item.slot; i <<= 1) {
         if (item.slot & i) {
-            if (categoryEls.has(i)) {
-                const categoryEl = categoryEls.get(i)!;
+            if (equipmentEls.has(i)) {
+                const categoryEl = equipmentEls.get(i)!;
                 const option = document.createElement('option');
                 option.value = `${idx}`;
                 option.textContent = item.name;
@@ -90,40 +126,120 @@ function addItemToCategories(item: ItemDescription, idx: number) {
     }
 }
 
-{
-    const option = document.createElement('option');
-    option.textContent = 'None';
-    categoryEls.get(ItemSlot.OFFHAND)!.appendChild(option);
+function addEnchantToCategories(enchant: EnchantDescription, idx: number) {
+    for (let i = 1; i <= enchant.slot; i <<= 1) {
+        if (enchant.slot & i) {
+            if (enchantEls.has(i)) {
+                const categoryEl = enchantEls.get(i)!;
+                const option = document.createElement('option');
+                option.value = `${idx}`;
+                option.textContent = enchant.name;
+                categoryEl.appendChild(option);
+            }
+        }
+    }
+}
+
+// TODO - refactor this mess
+function addTemporaryEnchantToCategories(enchant: EnchantDescription, idx: number) {
+    for (let i = 1; i <= enchant.slot; i <<= 1) {
+        if (enchant.slot & i) {
+            if (temporaryEnchantEls.has(i)) {
+                const categoryEl = temporaryEnchantEls.get(i)!;
+                const option = document.createElement('option');
+                option.value = `${idx}`;
+                option.textContent = enchant.name;
+                categoryEl.appendChild(option);
+            }
+        }
+    }
 }
 
 for (let [idx, item] of items.entries()) {
     addItemToCategories(item, idx);
 }
 
+for (let [idx, enchant] of enchants.entries()) {
+    addEnchantToCategories(enchant, idx);
+}
 
-for (let [slot, categoryEl] of categoryEls) {
+for (let [idx, temporaryEnchant] of temporaryEnchants.entries()) {
+    addTemporaryEnchantToCategories(temporaryEnchant, idx);
+}
+
+
+for (let [slot, equipmentEl] of equipmentEls) {
     const label = document.createElement('label');
     label.textContent = ItemSlot[slot].toLowerCase();
 
     itemsEl.appendChild(label);
-    itemsEl.appendChild(categoryEl);
+    itemsEl.appendChild(equipmentEl);
 
-    categoryEl.addEventListener('change', updateStats);
+    const enchantCategoryEl = enchantEls.get(slot);
+    if (enchantCategoryEl) {
+        itemsEl.appendChild(enchantCategoryEl);
+        enchantCategoryEl.addEventListener('change', updateStats);
+    }
+
+    const temporaryEnchantCategoryEl = temporaryEnchantEls.get(slot);
+    if (temporaryEnchantCategoryEl) {
+        itemsEl.appendChild(temporaryEnchantCategoryEl);
+        temporaryEnchantCategoryEl.addEventListener('change', updateStats);
+    }
+
+    equipmentEl.addEventListener('change', updateStats);
+}
+
+interface NamedDescription {
+    name: string,
+    [propName: string]: any;
+}
+
+export function lookupByName(data: NamedDescription[], name: string): number|undefined {
+    for (let [idx, item] of data.entries()) {
+        if (item.name === name) {
+            return idx;
+        }
+    }
 }
 
 // default items
-
-function setDefault(slot: ItemSlot, itemName: string) {
-    categoryEls.get(slot)!.value = '' + getIndexForItemName(itemName);
+function setSelect<K, V>(selectEls: Map<K, HTMLSelectElement>, key: K, value: number) {
+    selectEls.get(key)!.value = '' + value;
 }
 
-setDefault(ItemSlot.MAINHAND, "Empyrean Demolisher");
-setDefault(ItemSlot.OFFHAND, "Anubisath Warhammer");
-setDefault(ItemSlot.RING2, "Quick Strike Ring");
-setDefault(ItemSlot.TRINKET2, "Hand of Justice");
-setDefault(ItemSlot.HANDS, "Gauntlets of Annihilation");
-setDefault(ItemSlot.FEET, "Chromatic Boots");
-setDefault(ItemSlot.BACK, "Drape of Unyielding Strength");
+const DEFAULT = new Map<ItemSlot, string[]>();
+DEFAULT.set(ItemSlot.MAINHAND, ["Empyrean Demolisher", "Crusader MH", "Elemental Sharpening Stone"]);
+DEFAULT.set(ItemSlot.OFFHAND, ["Anubisath Warhammer", "Crusader OH", "+8 Damage"]);
+DEFAULT.set(ItemSlot.RANGED, ["Striker's Mark"]);
+DEFAULT.set(ItemSlot.HEAD, ["Lionheart Helm", "1 Haste"]);
+DEFAULT.set(ItemSlot.NECK, ["Barbed Choker"]);
+DEFAULT.set(ItemSlot.SHOULDER, ["Conqueror's Spaulders", "ZG Enchant (30 AP)"]);
+DEFAULT.set(ItemSlot.BACK, ["Drape of Unyielding Strength", "3 Agility"]);
+DEFAULT.set(ItemSlot.CHEST, ["Breastplate of Annihilation", "Greater Stats (+4)"]);
+DEFAULT.set(ItemSlot.WRIST, ["Hive Defiler Wristguards", "9 Strength"]);
+DEFAULT.set(ItemSlot.HANDS, ["Gauntlets of Annihilation", "15 Agility"]);
+DEFAULT.set(ItemSlot.WAIST, ["Onslaught Girdle"]);
+DEFAULT.set(ItemSlot.LEGS, ["Titanic Leggings", "1 Haste"]);
+DEFAULT.set(ItemSlot.FEET, ["Chromatic Boots", "Run Speed"]);
+DEFAULT.set(ItemSlot.RING1, ["Don Julio's Band"]);
+DEFAULT.set(ItemSlot.RING2, ["Quick Strike Ring"]);
+DEFAULT.set(ItemSlot.TRINKET1, ["Badge of the Swarmguard"]);
+DEFAULT.set(ItemSlot.TRINKET2, ["Diamond Flask"]);
+
+for (let [slot, [itemName, enchantName, temporaryEnchantName]] of DEFAULT) {
+    if (itemName) {
+        setSelect(equipmentEls, slot, lookupByName(items, itemName)!);
+    }
+
+    if (enchantName) {
+        setSelect(enchantEls, slot, lookupByName(enchants, enchantName)!);
+    }
+
+    if (temporaryEnchantName) {
+        setSelect(temporaryEnchantEls, slot, lookupByName(temporaryEnchants, temporaryEnchantName)!);
+    }
+}
 
 const buffInputEls: HTMLInputElement[] = [];
 
@@ -173,23 +289,47 @@ function setBuffs(buffs: number[]) { // TODO - inefficient, need map
     }
 }
 
-function getEquipmentIndices(): [number, ItemSlot][] {
-    const res: [number, ItemSlot][] = [];
+function getSelectIndices<K>(els: Map<K, HTMLSelectElement>) {
+    const res = new Map<K, number>();
 
-    for (let [slot, categoryEl] of categoryEls) {
-        const item = items[parseInt(categoryEl.value)];
+    for (let [key, selectEl] of els) {
+        const item = items[parseInt(selectEl.value)];
         if (item) {
-            res.push([parseInt(categoryEl.value), slot]);
+            res.set(key, parseInt(selectEl.value));
         }
     }
 
     return res;
 }
 
-function setEquipment(equipment: [number, ItemSlot][]) {
-    for (let [index, slot] of equipment) {
-        categoryEls.get(slot)!.value = '' + index;
+function setSelectIndices<K>(els: Map<K, HTMLSelectElement>, indices: Map<K, number>) {
+    for (let [key, index] of indices) {
+        els.get(key)!.value = '' + index;
     }
+}
+
+function getEquipmentIndices() {
+    return getSelectIndices(equipmentEls);
+}
+
+function setEquipment(equipment: Map<ItemSlot, number>) {
+    setSelectIndices(equipmentEls, equipment);
+}
+
+function getEnchantIndices() {
+    return getSelectIndices(enchantEls);
+}
+
+function setEnchants(enchants: Map<ItemSlot, number>) {
+    setSelectIndices(enchantEls, enchants);
+}
+
+function getTemporaryEnchantIndices() {
+    return getSelectIndices(temporaryEnchantEls);
+}
+
+function setTemporaryEnchants(temporaryEnchants: Map<ItemSlot, number>) {
+    setSelectIndices(temporaryEnchantEls, temporaryEnchants);
 }
 
 function getStats(): StatValues {
@@ -225,7 +365,14 @@ function formatStats(stats: StatValues) {
 
 function updateStats() {
     const player = (() => {
-        const player = setupPlayer(getRace(), getStats(), equipmentIndicesToItem(getEquipmentIndices()), buffIndicesToBuff(getBuffs()), undefined);
+        const player = setupPlayer(
+            getRace(),
+            getStats(),
+            lookupItems(getEquipmentIndices()),
+            lookupEnchants(getEnchantIndices()),
+            lookupTemporaryEnchants(getTemporaryEnchantIndices()),
+            lookupBuffs(getBuffs()),
+            undefined);
         player.buffManager.update(0);
         return player;
     })();
@@ -387,13 +534,43 @@ function saveInstantSim() {
     simEl.append(fightSettings);
 
     const itemsEl = document.createElement('div');
-    itemsEl.classList.add('simDetail', 'equipedItems');
-    itemsEl.textContent = 'Items: ' + equipmentIndicesToItem(getEquipmentIndices()).map(([item, slot]) => item.name).join(', ');
+    itemsEl.classList.add('simDetail', 'equipment');
+    // itemsEl.textContent =  'Items: ' + Array.from(lookupItems(getEquipmentIndices()).values()).map(item => item.name).join(', ');
+    
+    const equipment = lookupItems(simdisc.equipment);
+    const enchants = lookupEnchants(simdisc.enchants);
+    const temporaryEnchants = lookupTemporaryEnchants(simdisc.temporaryEnchants);
+
+    for (let slot of ITEM_SLOTS) {
+        const slotNameEl = document.createElement('div');
+        slotNameEl.innerHTML = `${ItemSlot[slot].toLowerCase()}`;
+        itemsEl.append(slotNameEl);
+
+        const itemEl = document.createElement('div');
+
+        const item = equipment.get(slot);
+        if (item) {
+            itemEl.innerHTML += ` ${item.name}`;
+
+            const enchant = enchants.get(slot);
+            if (enchant) {
+                itemEl.innerHTML += ` ${enchant.name}`;
+            }
+
+            const temporaryEnchant = temporaryEnchants.get(slot);
+            if (temporaryEnchant) {
+                itemEl.innerHTML += ` ${temporaryEnchant.name}`;
+            }
+        }
+
+        itemsEl.append(itemEl);
+    }
+    
     simEl.append(itemsEl);
 
     const buffsEl = document.createElement('div');
     buffsEl.classList.add('simDetail', 'chosenBuffs');
-    buffsEl.textContent = 'Buffs: ' + buffIndicesToBuff(getBuffs()).map((buff) => buff.name).join(', ');
+    buffsEl.textContent = 'Buffs: ' + lookupBuffs(getBuffs()).map((buff) => buff.name).join(', ');
     simEl.append(buffsEl);  
 
     if (simdisc.realtime) {
@@ -491,6 +668,8 @@ function startInstantSim(forceSave = false) {
         race: getRace(),
         stats: getStats(),
         equipment: getEquipmentIndices(),
+        enchants: getEnchantIndices(),
+        temporaryEnchants: getTemporaryEnchantIndices(),
         buffs: getBuffs(),
         fightLength: parseInt(fightLengthEl.value),
         realtime: realtime,

@@ -151,10 +151,13 @@ export class ExtraAttack extends Spell {
 }
 
 export class SpellBuff extends Spell {
-    constructor(buff: Buff, is_gcd?: boolean, cost?: number, cooldown?: number) {
-        super(`SpellBuff(${buff.name})`, SpellType.BUFF, SpellFamily.NONE, !!is_gcd, cost || 0, cooldown || 0, (player: Player, time: number) => {
+    buff: Buff;
+
+    constructor(buff: Buff, is_gcd = false, cost = 0, cooldown = 0) {
+        super(`SpellBuff(${buff.name})`, SpellType.BUFF, SpellFamily.NONE, is_gcd, cost, cooldown, (player: Player, time: number) => {
             player.buffManager.add(buff, time);
         });
+        this.buff = buff;
     }
 }
 

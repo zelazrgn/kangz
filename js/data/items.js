@@ -270,15 +270,11 @@ export const items = [
             const badgeBuff = new SpellBuff(new BuffProc("Badge of the Swarmguard", 30, new Proc(new SpellBuff(insightOfTheQiraji), { ppm: 15 }), insightOfTheQiraji), false, 0, 3 * 60);
             return badgeBuff;
         })()
+    },
+    {
+        name: "Diamond Flask",
+        slot: ItemSlot.TRINKET1 | ItemSlot.TRINKET2,
+        onuse: new SpellBuff(new Buff("Diamond Flask", 60, { str: 75 }), true, 0, 6 * 60),
     }
-].sort((a, b) => {
-    return a.name.localeCompare(b.name);
-});
-export function getIndexForItemName(name) {
-    for (let [idx, item] of items.entries()) {
-        if (item.name === name) {
-            return idx;
-        }
-    }
-}
+];
 //# sourceMappingURL=items.js.map
