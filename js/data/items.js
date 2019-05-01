@@ -130,6 +130,11 @@ export const items = [
         stats: { axeSkill: 7, daggerSkill: 7, swordSkill: 7 }
     },
     {
+        name: "Aged Core Leather Gloves",
+        slot: ItemSlot.HANDS,
+        stats: { str: 15, crit: 1, daggerSkill: 5 }
+    },
+    {
         name: "Onslaught Girdle",
         slot: ItemSlot.WAIST,
         stats: { str: 31, crit: 1, hit: 1 }
@@ -138,6 +143,11 @@ export const items = [
         name: "Titanic Leggings",
         slot: ItemSlot.LEGS,
         stats: { str: 30, crit: 1, hit: 2 }
+    },
+    {
+        name: "Conqueror's Legguards",
+        slot: ItemSlot.LEGS,
+        stats: { agi: 21, str: 33, hit: 1 }
     },
     {
         name: "Boots of the Fallen Hero",
@@ -155,14 +165,24 @@ export const items = [
         stats: { ap: 22, hit: 1 }
     },
     {
-        name: "Don Julio's Band",
-        slot: ItemSlot.RING1 | ItemSlot.RING2,
-        stats: { crit: 1, hit: 1, ap: 16 }
-    },
-    {
         name: "Quick Strike Ring",
         slot: ItemSlot.RING1 | ItemSlot.RING2,
         stats: { ap: 30, crit: 1, str: 5 }
+    },
+    {
+        name: "Ring of the Qiraji Fury",
+        slot: ItemSlot.RING1 | ItemSlot.RING2,
+        stats: { ap: 40, crit: 1 }
+    },
+    {
+        name: "Master Dragonslayer's Ring",
+        slot: ItemSlot.RING1 | ItemSlot.RING2,
+        stats: { ap: 48, hit: 1 }
+    },
+    {
+        name: "Don Julio's Band",
+        slot: ItemSlot.RING1 | ItemSlot.RING2,
+        stats: { crit: 1, hit: 1, ap: 16 }
     },
     {
         name: "Vis'kag the Bloodletter",
@@ -261,6 +281,42 @@ export const items = [
         max: 154,
         speed: 2.30,
         stats: { agi: 16, str: 9 }
+    },
+    {
+        name: "Mirah's Song",
+        type: WeaponType.SWORD,
+        slot: ItemSlot.MAINHAND | ItemSlot.OFFHAND,
+        min: 57,
+        max: 87,
+        speed: 1.8,
+        stats: { agi: 9, str: 9 }
+    },
+    {
+        name: "Death's Sting",
+        type: WeaponType.DAGGER,
+        slot: ItemSlot.MAINHAND | ItemSlot.OFFHAND,
+        min: 95,
+        max: 144,
+        speed: 1.8,
+        stats: { ap: 38, daggerSkill: 3 }
+    },
+    {
+        name: "Blessed Qiraji Pugio",
+        type: WeaponType.DAGGER,
+        slot: ItemSlot.MAINHAND | ItemSlot.OFFHAND,
+        min: 72,
+        max: 134,
+        speed: 1.7,
+        stats: { crit: 1, hit: 1, ap: 18 }
+    },
+    {
+        name: "Felstriker",
+        type: WeaponType.DAGGER,
+        slot: ItemSlot.MAINHAND | ItemSlot.OFFHAND,
+        min: 54,
+        max: 101,
+        speed: 1.7,
+        onhit: new Proc(new SpellBuff(new Buff("Felstriker", 3, { crit: 100, hit: 100 })), { ppm: 1.4 })
     },
     {
         name: "Badge of the Swarmguard",

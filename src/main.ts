@@ -222,8 +222,8 @@ DEFAULT.set(ItemSlot.HANDS, ["Gauntlets of Annihilation", "15 Agility"]);
 DEFAULT.set(ItemSlot.WAIST, ["Onslaught Girdle"]);
 DEFAULT.set(ItemSlot.LEGS, ["Titanic Leggings", "1 Haste"]);
 DEFAULT.set(ItemSlot.FEET, ["Chromatic Boots", "Run Speed"]);
-DEFAULT.set(ItemSlot.RING1, ["Don Julio's Band"]);
-DEFAULT.set(ItemSlot.RING2, ["Quick Strike Ring"]);
+DEFAULT.set(ItemSlot.RING1, ["Quick Strike Ring"]);
+DEFAULT.set(ItemSlot.RING2, ["Master Dragonslayer's Ring"]);
 DEFAULT.set(ItemSlot.TRINKET1, ["Badge of the Swarmguard"]);
 DEFAULT.set(ItemSlot.TRINKET2, ["Diamond Flask"]);
 
