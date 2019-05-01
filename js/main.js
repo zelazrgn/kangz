@@ -360,6 +360,8 @@ function saveInstantSim() {
         raceEl.value = '' + simdisc.race;
         setStats(simdisc.stats);
         setEquipment(simdisc.equipment);
+        setEnchants(simdisc.enchants);
+        setTemporaryEnchants(simdisc.temporaryEnchants);
         setBuffs(simdisc.buffs);
         fightLengthEl.value = '' + simdisc.fightLength;
         realtimeEl.checked = simdisc.realtime;
