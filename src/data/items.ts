@@ -1,5 +1,5 @@
 import { WeaponType, WeaponDescription, ItemSlot, ItemDescription } from "../item.js";
-import { SpellBuff, ExtraAttack, Proc, SpellType, ItemSpellDamage } from "../spell.js";
+import { SpellBuff, ExtraAttack, Proc, SpellType, ItemSpellDamage, SpellDamage, SpellFamily } from "../spell.js";
 import { Buff, BuffProc } from "../buff.js";
 
 // TODO - how to implement set bonuses? probably easiest to add bonus that requires a string search of other equiped items
@@ -40,6 +40,15 @@ export const items: (ItemDescription|WeaponDescription)[] = [
         max: 289,
         speed: 3.4,
         onhit: new Proc(new SpellBuff(new Buff("Untamed Fury", 8, {str: 300})),{ppm: 2})
+    },
+    {
+        name: "Misplaced Servo Arm",
+        type: WeaponType.MACE,
+        slot: ItemSlot.MAINHAND|ItemSlot.OFFHAND,
+        min: 128,
+        max: 238,
+        speed: 2.8,
+        onequip: new Proc(new SpellDamage("Electric Discharge", [100, 151], SpellType.MAGIC, SpellFamily.NONE),{ppm: 3})
     },
     {
         name: "Hand of Justice",
@@ -222,6 +231,15 @@ export const items: (ItemDescription|WeaponDescription)[] = [
         max: 213,
         speed: 2.8,
         stats: { crit: 1, ap: 20 }
+    },
+    {
+        name: "R14 Mace",
+        type: WeaponType.MACE,
+        slot: ItemSlot.MAINHAND|ItemSlot.OFFHAND,
+        min: 138,
+        max: 207,
+        speed: 2.9,
+        stats: { crit: 1, ap: 28 }
     },
     {
         name: "R14 Longsword",

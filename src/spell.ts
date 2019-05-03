@@ -1,6 +1,7 @@
 import { Player, MeleeHitOutcome } from "./player.js";
 import { Buff } from "./buff.js";
 import { WeaponDescription } from "./item.js";
+import { urand } from "./math.js";
 
 export enum SpellFamily {
     NONE,
@@ -109,6 +110,7 @@ export enum SpellType {
     BUFF,
     PHYSICAL,
     PHYSICAL_WEAPON,
+    MAGIC,
 }
 
 export type SpellHitOutcomeCallback = (player: Player, hitOutcome: MeleeHitOutcome) => void;
@@ -116,12 +118,14 @@ export type SpellHitOutcomeCallback = (player: Player, hitOutcome: MeleeHitOutco
 export class SpellDamage extends Spell {
     callback?: SpellHitOutcomeCallback;
 
-    constructor(name: string, amount: number|((player: Player) => number), type: SpellType, family: SpellFamily, is_gcd = false, cost = 0, cooldown = 0, callback?: SpellHitOutcomeCallback) {
+    constructor(name: string, amount: number|[number, number]|((player: Player) => number), type: SpellType, family: SpellFamily, is_gcd = false, cost = 0, cooldown = 0, callback?: SpellHitOutcomeCallback) {
         super(name, type, family, is_gcd, cost, cooldown, (player: Player, time: number) => {
-            const dmg = (typeof amount === "number") ? amount : amount(player);
+            const dmg = (amount instanceof Function) ? amount(player) : (Array.isArray(amount) ? urand(...amount) : amount);
             
             if (type === SpellType.PHYSICAL || type === SpellType.PHYSICAL_WEAPON) {
                 player.dealMeleeDamage(time, dmg, player.target!, true, this);
+            } else if (type === SpellType.MAGIC) {
+                player.dealSpellDamage(time, dmg, player.target!, this);
             }
         });
 

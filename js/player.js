@@ -304,6 +304,13 @@ export class Player extends Unit {
             this.buffManager.update(time);
         }
     }
+    dealSpellDamage(time, rawDamage, target, spell) {
+        const damageDone = rawDamage;
+        this.damageLog.push([time, damageDone]);
+        if (this.log) {
+            this.log(time, `${spell.name} hits for ${damageDone}`);
+        }
+    }
     swingWeapon(time, target, is_mh) {
         const rawDamage = this.calculateSwingRawDamage(is_mh);
         if (!this.doingExtraAttacks && is_mh && this.queuedSpell && this.queuedSpell.canCast(time)) {

@@ -1,3 +1,4 @@
+import { urand } from "./math.js";
 export var SpellFamily;
 (function (SpellFamily) {
     SpellFamily[SpellFamily["NONE"] = 0] = "NONE";
@@ -73,13 +74,17 @@ export var SpellType;
     SpellType[SpellType["BUFF"] = 1] = "BUFF";
     SpellType[SpellType["PHYSICAL"] = 2] = "PHYSICAL";
     SpellType[SpellType["PHYSICAL_WEAPON"] = 3] = "PHYSICAL_WEAPON";
+    SpellType[SpellType["MAGIC"] = 4] = "MAGIC";
 })(SpellType || (SpellType = {}));
 export class SpellDamage extends Spell {
     constructor(name, amount, type, family, is_gcd = false, cost = 0, cooldown = 0, callback) {
         super(name, type, family, is_gcd, cost, cooldown, (player, time) => {
-            const dmg = (typeof amount === "number") ? amount : amount(player);
+            const dmg = (amount instanceof Function) ? amount(player) : (Array.isArray(amount) ? urand(...amount) : amount);
             if (type === SpellType.PHYSICAL || type === SpellType.PHYSICAL_WEAPON) {
                 player.dealMeleeDamage(time, dmg, player.target, true, this);
+            }
+            else if (type === SpellType.MAGIC) {
+                player.dealSpellDamage(time, dmg, player.target, this);
             }
         });
         this.callback = callback;

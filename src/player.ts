@@ -402,6 +402,16 @@ export class Player extends Unit {
         }
     }
 
+    dealSpellDamage(time: number, rawDamage: number, target: Unit, spell: Spell) {
+        const damageDone = rawDamage;
+
+        this.damageLog.push([time, damageDone]);
+
+        if (this.log) {
+            this.log(time, `${spell.name} hits for ${damageDone}`);
+        }
+    }
+
     protected swingWeapon(time: number, target: Unit, is_mh: boolean) {
         const rawDamage = this.calculateSwingRawDamage(is_mh);
         
