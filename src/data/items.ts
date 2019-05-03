@@ -233,6 +233,33 @@ export const items: (ItemDescription|WeaponDescription)[] = [
         stats: { crit: 1, ap: 20 }
     },
     {
+        name: "Iblis, Blade of the Fallen Seraph",
+        type: WeaponType.SWORD,
+        slot: ItemSlot.MAINHAND|ItemSlot.OFFHAND,
+        min: 70,
+        max: 131,
+        speed: 1.6,
+        stats: { crit: 1, hit: 1, ap: 26 }
+    },
+    {
+        name: "Gressil, Dawn of Ruin",
+        type: WeaponType.SWORD,
+        slot: ItemSlot.MAINHAND|ItemSlot.OFFHAND,
+        min: 138,
+        max: 257,
+        speed: 2.7,
+        stats: { ap: 40 }
+    },
+    {
+        name: "The Hungering Cold",
+        type: WeaponType.SWORD,
+        slot: ItemSlot.MAINHAND|ItemSlot.OFFHAND,
+        min: 76,
+        max: 143,
+        speed: 1.5,
+        stats: { swordSkill: 6 }
+    },
+    {
         name: "R14 Mace",
         type: WeaponType.MACE,
         slot: ItemSlot.MAINHAND|ItemSlot.OFFHAND,
@@ -258,6 +285,15 @@ export const items: (ItemDescription|WeaponDescription)[] = [
         max: 129,
         speed: 1.8,
         stats: { crit: 1, ap: 28 }
+    },
+    {
+        name: "Hatchet of Sundered Bone",
+        type: WeaponType.AXE,
+        slot: ItemSlot.MAINHAND|ItemSlot.OFFHAND,
+        min: 119,
+        max: 221,
+        speed: 2.6,
+        stats: { ap: 36, crit: 1 }
     },
     {
         name: "R14 Axe",
