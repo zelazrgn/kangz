@@ -105,7 +105,7 @@ export class Warrior extends Player {
         // extra attacks don't use flurry charges but they can proc flurry (tested)
         if (
             !this.doingExtraAttacks
-            && !(spell || spell === heroicStrikeSpell)
+            && (!spell || spell === heroicStrikeSpell)
             && ![MeleeHitOutcome.MELEE_HIT_MISS, MeleeHitOutcome.MELEE_HIT_DODGE].includes(hitOutcome)
             && hitOutcome !== MeleeHitOutcome.MELEE_HIT_CRIT
         ) { 

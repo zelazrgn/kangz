@@ -71,7 +71,7 @@ export class Warrior extends Player {
             this.rewardRage(damageDone, true, time);
         }
         if (!this.doingExtraAttacks
-            && !(spell || spell === heroicStrikeSpell)
+            && (!spell || spell === heroicStrikeSpell)
             && ![MeleeHitOutcome.MELEE_HIT_MISS, MeleeHitOutcome.MELEE_HIT_DODGE].includes(hitOutcome)
             && hitOutcome !== MeleeHitOutcome.MELEE_HIT_CRIT) {
             this.buffManager.remove(flurry, time);
