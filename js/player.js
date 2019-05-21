@@ -3,7 +3,7 @@ import { Unit } from "./unit.js";
 import { urand, clamp, frand } from "./math.js";
 import { BuffManager } from "./buff.js";
 import { Stats } from "./stats.js";
-import { SpellType, SpellDamage } from "./spell.js";
+import { EffectType, SpellDamageEffect } from "./spell.js";
 import { LH_CORE_BUG } from "./sim_settings.js";
 export var Race;
 (function (Race) {
@@ -97,8 +97,8 @@ export class Player extends Unit {
             return proc !== p;
         });
     }
-    calculateWeaponSkillValue(is_mh, spell) {
-        if (spell && spell.type !== SpellType.PHYSICAL_WEAPON) {
+    calculateWeaponSkillValue(is_mh, effect) {
+        if (effect && effect.type !== EffectType.PHYSICAL_WEAPON) {
             return this.maxSkillForLevel;
         }
         const weapon = is_mh ? this.mh : this.oh;
@@ -138,29 +138,29 @@ export class Player extends Unit {
                 }
         }
     }
-    calculateCritChance(victim, is_mh, spell) {
-        if (LH_CORE_BUG && spell && spell.type == SpellType.PHYSICAL) {
-            spell = undefined;
+    calculateCritChance(victim, is_mh, effect) {
+        if (LH_CORE_BUG && effect && effect.type == EffectType.PHYSICAL) {
+            effect = undefined;
         }
         let crit = this.buffManager.stats.crit;
         crit += this.buffManager.stats.agi * this.buffManager.stats.statMult / 20;
-        if (!spell || spell.type == SpellType.PHYSICAL_WEAPON) {
+        if (!effect || effect.type == EffectType.PHYSICAL_WEAPON) {
             const weapon = is_mh ? this.mh : this.oh;
             if (weapon.temporaryEnchant && weapon.temporaryEnchant.stats && weapon.temporaryEnchant.stats.crit) {
                 crit += weapon.temporaryEnchant.stats.crit;
             }
         }
-        const skillBonus = 0.04 * (this.calculateWeaponSkillValue(is_mh, spell) - victim.maxSkillForLevel);
+        const skillBonus = 0.04 * (this.calculateWeaponSkillValue(is_mh, effect) - victim.maxSkillForLevel);
         crit += skillBonus;
         return crit;
     }
-    calculateMissChance(victim, is_mh, spell) {
+    calculateMissChance(victim, is_mh, effect) {
         let res = 5;
         res -= this.buffManager.stats.hit;
-        if (this.oh && !spell) {
+        if (this.oh && !effect) {
             res += 19;
         }
-        const skillDiff = this.calculateWeaponSkillValue(is_mh, spell) - victim.defenseSkill;
+        const skillDiff = this.calculateWeaponSkillValue(is_mh, effect) - victim.defenseSkill;
         if (skillDiff < -10) {
             res -= (skillDiff + 10) * 0.4 - 2;
         }
@@ -203,14 +203,14 @@ export class Player extends Unit {
         const glance_chance = clamp((10 + (this.target.defenseSkill - 300) * 2) * 100, 0, 4000);
         return (10000 - (miss_chance + dodge_chance + glance_chance)) / 100;
     }
-    rollMeleeHitOutcome(victim, is_mh, spell) {
+    rollMeleeHitOutcome(victim, is_mh, effect) {
         const roll = urand(0, 10000);
         let sum = 0;
         let tmp = 0;
-        const miss_chance = Math.round(this.calculateMissChance(victim, is_mh, spell) * 100);
+        const miss_chance = Math.round(this.calculateMissChance(victim, is_mh, effect) * 100);
         const dodge_chance = Math.round(victim.dodgeChance * 100);
-        const crit_chance = Math.round(this.calculateCritChance(victim, is_mh, spell) * 100);
-        const skillBonus = 4 * (this.calculateWeaponSkillValue(is_mh, spell) - victim.maxSkillForLevel);
+        const crit_chance = Math.round(this.calculateCritChance(victim, is_mh, effect) * 100);
+        const skillBonus = 4 * (this.calculateWeaponSkillValue(is_mh, effect) - victim.maxSkillForLevel);
         tmp = miss_chance;
         if (tmp > 0 && roll < (sum += tmp)) {
             return MeleeHitOutcome.MELEE_HIT_MISS;
@@ -219,7 +219,7 @@ export class Player extends Unit {
         if (tmp > 0 && roll < (sum += tmp)) {
             return MeleeHitOutcome.MELEE_HIT_DODGE;
         }
-        if (!spell) {
+        if (!effect) {
             tmp = (10 + (victim.defenseSkill - 300) * 2) * 100;
             tmp = clamp(tmp, 0, 4000);
             if (roll < (sum += tmp)) {
@@ -232,15 +232,15 @@ export class Player extends Unit {
         }
         return MeleeHitOutcome.MELEE_HIT_NORMAL;
     }
-    calculateBonusDamage(rawDamage, victim, spell) {
+    calculateBonusDamage(rawDamage, victim, effect) {
         let damageWithBonus = rawDamage;
         damageWithBonus *= this.buffManager.stats.damageMult;
         return damageWithBonus;
     }
-    calculateMeleeDamage(rawDamage, victim, is_mh, spell) {
-        const damageWithBonus = this.calculateBonusDamage(rawDamage, victim, spell);
+    calculateMeleeDamage(rawDamage, victim, is_mh, effect) {
+        const damageWithBonus = this.calculateBonusDamage(rawDamage, victim, effect);
         const armorReduced = victim.calculateArmorReducedDamage(damageWithBonus, this);
-        const hitOutcome = this.rollMeleeHitOutcome(victim, is_mh, spell);
+        const hitOutcome = this.rollMeleeHitOutcome(victim, is_mh, effect);
         let damage = armorReduced;
         let cleanDamage = 0;
         switch (hitOutcome) {
@@ -274,7 +274,7 @@ export class Player extends Unit {
         }
         return [damage, hitOutcome, cleanDamage];
     }
-    updateProcs(time, is_mh, hitOutcome, damageDone, cleanDamage, spell) {
+    updateProcs(time, is_mh, hitOutcome, damageDone, cleanDamage, effect) {
         if (![MeleeHitOutcome.MELEE_HIT_MISS, MeleeHitOutcome.MELEE_HIT_DODGE, MeleeHitOutcome.MELEE_HIT_PARRY].includes(hitOutcome)) {
             for (let proc of this.procs) {
                 proc.run(this, (is_mh ? this.mh : this.oh).weapon, time);
@@ -282,45 +282,42 @@ export class Player extends Unit {
             (is_mh ? this.mh : this.oh).proc(time);
         }
     }
-    dealMeleeDamage(time, rawDamage, target, is_mh, spell) {
-        let [damageDone, hitOutcome, cleanDamage] = this.calculateMeleeDamage(rawDamage, target, is_mh, spell);
+    dealMeleeDamage(time, rawDamage, target, is_mh, effect) {
+        let [damageDone, hitOutcome, cleanDamage] = this.calculateMeleeDamage(rawDamage, target, is_mh, effect);
         damageDone = Math.trunc(damageDone);
         cleanDamage = Math.trunc(cleanDamage);
         this.damageLog.push([time, damageDone]);
         if (this.log) {
-            let hitStr = `Your ${spell ? spell.name : (is_mh ? 'main-hand' : 'off-hand')} ${hitOutcomeString[hitOutcome]}`;
+            let hitStr = `Your ${effect ? effect.parent.name : (is_mh ? 'main-hand' : 'off-hand')} ${hitOutcomeString[hitOutcome]}`;
             if (![MeleeHitOutcome.MELEE_HIT_MISS, MeleeHitOutcome.MELEE_HIT_DODGE, MeleeHitOutcome.MELEE_HIT_PARRY].includes(hitOutcome)) {
                 hitStr += ` for ${damageDone}`;
             }
             this.log(time, hitStr);
         }
-        if (spell instanceof SpellDamage) {
-            if (spell.callback) {
-                spell.callback(this, hitOutcome);
+        if (effect instanceof SpellDamageEffect) {
+            if (effect.callback) {
+                effect.callback(this, hitOutcome);
             }
         }
-        if (!spell || spell.canProc) {
-            this.updateProcs(time, is_mh, hitOutcome, damageDone, cleanDamage, spell);
+        if (!effect || effect.canProc) {
+            this.updateProcs(time, is_mh, hitOutcome, damageDone, cleanDamage, effect);
             this.buffManager.update(time);
         }
     }
-    dealSpellDamage(time, rawDamage, target, spell) {
+    dealSpellDamage(time, rawDamage, target, effect) {
         const damageDone = rawDamage;
         this.damageLog.push([time, damageDone]);
         if (this.log) {
-            this.log(time, `${spell.name} hits for ${damageDone}`);
+            this.log(time, `${effect.parent.name} hits for ${damageDone}`);
         }
     }
     swingWeapon(time, target, is_mh) {
-        const rawDamage = this.calculateSwingRawDamage(is_mh);
         if (!this.doingExtraAttacks && is_mh && this.queuedSpell && this.queuedSpell.canCast(time)) {
             this.queuedSpell.cast(time);
-            const swingSpell = this.queuedSpell.spell;
             this.queuedSpell = undefined;
-            const bonusDamage = swingSpell.bonusDamage;
-            this.dealMeleeDamage(time, rawDamage + bonusDamage, target, is_mh, swingSpell);
         }
         else {
+            const rawDamage = this.calculateSwingRawDamage(is_mh);
             this.dealMeleeDamage(time, rawDamage, target, is_mh);
         }
         const [thisWeapon, otherWeapon] = is_mh ? [this.mh, this.oh] : [this.oh, this.mh];

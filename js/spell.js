@@ -1,22 +1,40 @@
 import { urand } from "./math.js";
-export var SpellFamily;
-(function (SpellFamily) {
-    SpellFamily[SpellFamily["NONE"] = 0] = "NONE";
-    SpellFamily[SpellFamily["WARRIOR"] = 1] = "WARRIOR";
-})(SpellFamily || (SpellFamily = {}));
-export class Spell {
-    constructor(name, type, family, is_gcd, cost, cooldown, spellF) {
+export var EffectFamily;
+(function (EffectFamily) {
+    EffectFamily[EffectFamily["NONE"] = 0] = "NONE";
+    EffectFamily[EffectFamily["WARRIOR"] = 1] = "WARRIOR";
+})(EffectFamily || (EffectFamily = {}));
+export var EffectType;
+(function (EffectType) {
+    EffectType[EffectType["NONE"] = 0] = "NONE";
+    EffectType[EffectType["BUFF"] = 1] = "BUFF";
+    EffectType[EffectType["PHYSICAL"] = 2] = "PHYSICAL";
+    EffectType[EffectType["PHYSICAL_WEAPON"] = 3] = "PHYSICAL_WEAPON";
+    EffectType[EffectType["MAGIC"] = 4] = "MAGIC";
+})(EffectType || (EffectType = {}));
+export class Effect {
+    constructor(type, family = EffectFamily.NONE) {
         this.canProc = true;
-        this.name = name;
         this.type = type;
         this.family = family;
+    }
+    run(player, time) { }
+}
+export class Spell {
+    constructor(name, is_gcd, cost, cooldown, effects) {
+        this.name = name;
         this.cost = cost;
         this.cooldown = cooldown;
         this.is_gcd = is_gcd;
-        this.spellF = spellF;
+        this.effects = Array.isArray(effects) ? effects : [effects];
+        for (let effect of this.effects) {
+            effect.parent = this;
+        }
     }
     cast(player, time) {
-        return this.spellF(player, time);
+        for (let effect of this.effects) {
+            effect.run(player, time);
+        }
     }
 }
 export class LearnedSpell {
@@ -56,10 +74,31 @@ export class LearnedSpell {
         return true;
     }
 }
+export class ModifyPowerEffect extends Effect {
+    constructor(amount) {
+        super(EffectType.NONE);
+        this.amount = amount;
+    }
+    run(player, time) {
+        player.power += this.amount;
+        if (player.log)
+            player.log(time, `You gain ${this.amount} rage from ${this.parent.name}`);
+    }
+}
+export class SwingEffect extends Effect {
+    constructor(bonusDamage, family) {
+        super(EffectType.PHYSICAL_WEAPON, family);
+        this.bonusDamage = bonusDamage;
+    }
+    run(player, time) {
+        const is_mh = true;
+        const rawDamage = player.calculateSwingRawDamage(is_mh);
+        player.dealMeleeDamage(time, rawDamage + this.bonusDamage, player.target, is_mh, this);
+    }
+}
 export class SwingSpell extends Spell {
     constructor(name, family, bonusDamage, cost) {
-        super(name, SpellType.PHYSICAL_WEAPON, family, false, cost, 0, () => { });
-        this.bonusDamage = bonusDamage;
+        super(name, false, cost, 0, new SwingEffect(bonusDamage, family));
     }
 }
 export class LearnedSwingSpell extends LearnedSpell {
@@ -68,51 +107,66 @@ export class LearnedSwingSpell extends LearnedSpell {
         this.spell = spell;
     }
 }
-export var SpellType;
-(function (SpellType) {
-    SpellType[SpellType["NONE"] = 0] = "NONE";
-    SpellType[SpellType["BUFF"] = 1] = "BUFF";
-    SpellType[SpellType["PHYSICAL"] = 2] = "PHYSICAL";
-    SpellType[SpellType["PHYSICAL_WEAPON"] = 3] = "PHYSICAL_WEAPON";
-    SpellType[SpellType["MAGIC"] = 4] = "MAGIC";
-})(SpellType || (SpellType = {}));
-export class SpellDamage extends Spell {
-    constructor(name, amount, type, family, is_gcd = false, cost = 0, cooldown = 0, callback) {
-        super(name, type, family, is_gcd, cost, cooldown, (player, time) => {
-            const dmg = (amount instanceof Function) ? amount(player) : (Array.isArray(amount) ? urand(...amount) : amount);
-            if (type === SpellType.PHYSICAL || type === SpellType.PHYSICAL_WEAPON) {
-                player.dealMeleeDamage(time, dmg, player.target, true, this);
-            }
-            else if (type === SpellType.MAGIC) {
-                player.dealSpellDamage(time, dmg, player.target, this);
-            }
-        });
+export class SpellDamageEffect extends Effect {
+    constructor(type, family, amount, callback) {
+        super(type, family);
+        this.amount = amount;
         this.callback = callback;
+    }
+    calculateAmount(player) {
+        return (this.amount instanceof Function) ? this.amount(player) : (Array.isArray(this.amount) ? urand(...this.amount) : this.amount);
+    }
+    run(player, time) {
+        if (this.type === EffectType.PHYSICAL || this.type === EffectType.PHYSICAL_WEAPON) {
+            player.dealMeleeDamage(time, this.calculateAmount(player), player.target, true, this);
+        }
+        else if (this.type === EffectType.MAGIC) {
+            player.dealSpellDamage(time, this.calculateAmount(player), player.target, this);
+        }
+    }
+}
+export class SpellDamage extends Spell {
+    constructor(name, amount, type, family = EffectFamily.NONE, is_gcd = false, cost = 0, cooldown = 0, callback) {
+        super(name, is_gcd, cost, cooldown, new SpellDamageEffect(type, family, amount, callback));
     }
 }
 export class ItemSpellDamage extends SpellDamage {
     constructor(name, amount, type) {
-        super(name, amount, type, SpellFamily.NONE);
+        super(name, amount, type, EffectFamily.NONE);
         this.canProc = false;
+    }
+}
+export class ExtraAttackEffect extends Effect {
+    constructor(count) {
+        super(EffectType.NONE);
+        this.count = count;
+    }
+    run(player, time) {
+        if (player.extraAttackCount) {
+            return;
+        }
+        player.extraAttackCount += this.count;
+        if (player.log)
+            player.log(time, `Gained ${this.count} extra attacks from ${this.parent.name}`);
     }
 }
 export class ExtraAttack extends Spell {
     constructor(name, count) {
-        super(name, SpellType.NONE, SpellFamily.NONE, false, 0, 0, (player, time) => {
-            if (player.extraAttackCount) {
-                return;
-            }
-            player.extraAttackCount += count;
-            if (player.log)
-                player.log(time, `Gained ${count} extra attacks from ${name}`);
-        });
+        super(name, false, 0, 0, new ExtraAttackEffect(count));
+    }
+}
+export class SpellBuffEffect extends Effect {
+    constructor(buff) {
+        super(EffectType.BUFF);
+        this.buff = buff;
+    }
+    run(player, time) {
+        player.buffManager.add(this.buff, time);
     }
 }
 export class SpellBuff extends Spell {
     constructor(buff, is_gcd = false, cost = 0, cooldown = 0) {
-        super(`SpellBuff(${buff.name})`, SpellType.BUFF, SpellFamily.NONE, is_gcd, cost, cooldown, (player, time) => {
-            player.buffManager.add(buff, time);
-        });
+        super(`SpellBuff(${buff.name})`, is_gcd, cost, cooldown, new SpellBuffEffect(buff));
         this.buff = buff;
     }
 }

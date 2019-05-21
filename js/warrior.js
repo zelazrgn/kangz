@@ -1,6 +1,6 @@
 import { Player, MeleeHitOutcome, Race } from "./player.js";
 import { Buff, BuffOverTime, BuffProc } from "./buff.js";
-import { Spell, LearnedSpell, SpellDamage, SpellType, SwingSpell, LearnedSwingSpell, Proc, SpellBuff, SpellFamily } from "./spell.js";
+import { Spell, LearnedSpell, SpellDamage, EffectType, SwingSpell, LearnedSwingSpell, Proc, SpellBuff, SpellBuffEffect, ModifyPowerEffect, EffectFamily } from "./spell.js";
 import { clamp } from "./math.js";
 import { Stats } from "./stats.js";
 const flurry = new Buff("Flurry", 15, { haste: 1.3 }, true, 3, undefined, undefined, false);
@@ -32,12 +32,12 @@ export class Warrior extends Player {
     get ap() {
         return this.level * 3 - 20 + this.buffManager.stats.ap + this.buffManager.stats.str * this.buffManager.stats.statMult * 2;
     }
-    calculateCritChance(victim, is_mh, spell) {
-        return 5 + 3 + super.calculateCritChance(victim, is_mh, spell);
+    calculateCritChance(victim, is_mh, effect) {
+        return 5 + 3 + super.calculateCritChance(victim, is_mh, effect);
     }
-    calculateMeleeDamage(rawDamage, victim, is_mh, spell) {
-        let [damageDone, hitOutcome, cleanDamage] = super.calculateMeleeDamage(rawDamage, victim, is_mh, spell);
-        if (hitOutcome === MeleeHitOutcome.MELEE_HIT_CRIT && spell && spell.family === SpellFamily.WARRIOR) {
+    calculateMeleeDamage(rawDamage, victim, is_mh, effect) {
+        let [damageDone, hitOutcome, cleanDamage] = super.calculateMeleeDamage(rawDamage, victim, is_mh, effect);
+        if (hitOutcome === MeleeHitOutcome.MELEE_HIT_CRIT && effect && effect.family === EffectFamily.WARRIOR) {
             damageDone *= 1.1;
         }
         return [damageDone, hitOutcome, cleanDamage];
@@ -55,23 +55,23 @@ export class Warrior extends Player {
             this.log(time, `Gained ${Math.min(addRage, 100 - this.rage)} rage (${Math.min(100, this.power + addRage)})`);
         this.power += addRage;
     }
-    updateProcs(time, is_mh, hitOutcome, damageDone, cleanDamage, spell) {
-        super.updateProcs(time, is_mh, hitOutcome, damageDone, cleanDamage, spell);
+    updateProcs(time, is_mh, hitOutcome, damageDone, cleanDamage, effect) {
+        super.updateProcs(time, is_mh, hitOutcome, damageDone, cleanDamage, effect);
         if ([MeleeHitOutcome.MELEE_HIT_PARRY, MeleeHitOutcome.MELEE_HIT_DODGE].includes(hitOutcome)) {
-            if (spell) {
-                if (spell !== whirlwindSpell) {
-                    this.rage += spell.cost * 0.82;
+            if (effect) {
+                if (effect.parent instanceof Spell && effect.parent !== whirlwindSpell) {
+                    this.rage += effect.parent.cost * 0.82;
                 }
             }
             else {
                 this.rewardRage(cleanDamage * 0.75, true, time);
             }
         }
-        else if (damageDone && !spell) {
+        else if (damageDone && !effect) {
             this.rewardRage(damageDone, true, time);
         }
         if (!this.doingExtraAttacks
-            && (!spell || spell === heroicStrikeSpell)
+            && (!effect || effect.parent === heroicStrikeSpell)
             && ![MeleeHitOutcome.MELEE_HIT_MISS, MeleeHitOutcome.MELEE_HIT_DODGE].includes(hitOutcome)
             && hitOutcome !== MeleeHitOutcome.MELEE_HIT_CRIT) {
             this.buffManager.remove(flurry, time);
@@ -81,41 +81,26 @@ export class Warrior extends Player {
         }
     }
 }
-const heroicStrikeSpell = new SwingSpell("Heroic Strike", SpellFamily.WARRIOR, 157, 12);
+const heroicStrikeSpell = new SwingSpell("Heroic Strike", EffectFamily.WARRIOR, 157, 12);
 const executeSpell = new SpellDamage("Execute", (player) => {
     return 600 + (player.power - 10) * 15;
-}, SpellType.PHYSICAL_WEAPON, SpellFamily.WARRIOR, true, 10, 0, (player, hitOutcome) => {
+}, EffectType.PHYSICAL_WEAPON, EffectFamily.WARRIOR, true, 10, 0, (player, hitOutcome) => {
     if (![MeleeHitOutcome.MELEE_HIT_PARRY, MeleeHitOutcome.MELEE_HIT_DODGE, MeleeHitOutcome.MELEE_HIT_MISS].includes(hitOutcome)) {
         player.power = 0;
     }
 });
 const bloodthirstSpell = new SpellDamage("Bloodthirst", (player) => {
     return player.ap * 0.45;
-}, SpellType.PHYSICAL, SpellFamily.WARRIOR, true, 30, 6);
+}, EffectType.PHYSICAL, EffectFamily.WARRIOR, true, 30, 6);
 const whirlwindSpell = new SpellDamage("Whirlwind", (player) => {
     return player.calculateSwingRawDamage(true);
-}, SpellType.PHYSICAL_WEAPON, SpellFamily.WARRIOR, true, 25, 10);
-const hamstringSpell = new SpellDamage("Hamstring", 45, SpellType.PHYSICAL_WEAPON, SpellFamily.WARRIOR, true, 10, 0);
-export const angerManagementOT = new BuffOverTime("Anger Management", Number.MAX_SAFE_INTEGER, undefined, 3000, (player, time) => {
-    player.power += 1;
-    if (player.log)
-        player.log(time, `You gained 1 rage from Anger Management`);
-});
-const bloodRageOT = new BuffOverTime("Bloodrage", 10, undefined, 1000, (player, time) => {
-    player.power += 1;
-    if (player.log)
-        player.log(time, `You gained 1 rage from Bloodrage`);
-});
-const bloodRage = new Spell("Bloodrage", SpellType.NONE, SpellFamily.WARRIOR, false, 0, 60, (player, time) => {
-    player.power += 10;
-    if (player.log)
-        player.log(time, `You gain 10 rage from Bloodrage`);
-    player.buffManager.add(bloodRageOT, time);
-});
+}, EffectType.PHYSICAL_WEAPON, EffectFamily.WARRIOR, true, 25, 10);
+const hamstringSpell = new SpellDamage("Hamstring", 45, EffectType.PHYSICAL_WEAPON, EffectFamily.WARRIOR, true, 10, 0);
+export const angerManagementOT = new BuffOverTime("Anger Management", Number.MAX_SAFE_INTEGER, undefined, 3000, new ModifyPowerEffect(1));
+const bloodRage = new Spell("Bloodrage", false, 0, 60, [
+    new ModifyPowerEffect(10),
+    new SpellBuffEffect(new BuffOverTime("Bloodrage", 10, undefined, 1000, new ModifyPowerEffect(1)))
+]);
 const deathWish = new SpellBuff(new Buff("Death Wish", 30, { damageMult: 1.2 }), true, 10, 3 * 60);
-const unbridledWrath = new BuffProc("Unbridled Wrath", 60 * 60, new Proc(new Spell("Unbridled Wrath", SpellType.NONE, SpellFamily.WARRIOR, false, 0, 0, (player, time) => {
-    if (player.log)
-        player.log(time, `You gain 1 rage from Unbridled Wrath`);
-    player.power += 1;
-}), { chance: 40 }));
+const unbridledWrath = new BuffProc("Unbridled Wrath", 60 * 60, new Proc(new Spell("Unbridled Wrath", false, 0, 0, new ModifyPowerEffect(1)), { chance: 40 }));
 //# sourceMappingURL=warrior.js.map

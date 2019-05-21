@@ -3,7 +3,7 @@ import { Unit } from "./unit.js";
 import { urand, clamp, frand } from "./math.js";
 import { BuffManager } from "./buff.js";
 import { StatValues, Stats } from "./stats.js";
-import { Spell, Proc, LearnedSwingSpell, SpellType, SpellDamage } from "./spell.js";
+import { Proc, LearnedSwingSpell, EffectType, SpellDamageEffect, Effect } from "./spell.js";
 import { LH_CORE_BUG } from "./sim_settings.js";
 import { EnchantDescription } from "./data/enchants.js";
 
@@ -136,8 +136,8 @@ export class Player extends Unit {
         });
     }
 
-    protected calculateWeaponSkillValue(is_mh: boolean, spell?: Spell) {
-        if (spell && spell.type !== SpellType.PHYSICAL_WEAPON) {
+    protected calculateWeaponSkillValue(is_mh: boolean, effect?: Effect) {
+        if (effect && effect.type !== EffectType.PHYSICAL_WEAPON) {
             return this.maxSkillForLevel;
         }
 
@@ -181,19 +181,19 @@ export class Player extends Unit {
         }
     }
 
-    calculateCritChance(victim: Unit, is_mh: boolean, spell?: Spell) {
-        if (LH_CORE_BUG && spell && spell.type == SpellType.PHYSICAL) {
+    calculateCritChance(victim: Unit, is_mh: boolean, effect?: Effect) {
+        if (LH_CORE_BUG && effect && effect.type == EffectType.PHYSICAL) {
             // on LH core, non weapon spells like bloodthirst are benefitting from weapon skill
             // this only affects crit, not hit/dodge/parry
             // set the spell to undefined so it is treated like a normal melee attack (rather than using a dummy spell)
             // when calculating weapon skill
-            spell = undefined;
+            effect = undefined;
         }
 
         let crit = this.buffManager.stats.crit;
         crit += this.buffManager.stats.agi * this.buffManager.stats.statMult / 20;
 
-        if (!spell || spell.type == SpellType.PHYSICAL_WEAPON) {
+        if (!effect || effect.type == EffectType.PHYSICAL_WEAPON) {
             const weapon = is_mh ? this.mh! : this.oh!;
 
             if (weapon.temporaryEnchant && weapon.temporaryEnchant.stats && weapon.temporaryEnchant.stats.crit) {
@@ -201,21 +201,21 @@ export class Player extends Unit {
             }
         }
 
-        const skillBonus = 0.04 * (this.calculateWeaponSkillValue(is_mh, spell) - victim.maxSkillForLevel);
+        const skillBonus = 0.04 * (this.calculateWeaponSkillValue(is_mh, effect) - victim.maxSkillForLevel);
         crit += skillBonus;
 
         return crit;
     }
 
-    protected calculateMissChance(victim: Unit, is_mh: boolean, spell?: Spell) {
+    protected calculateMissChance(victim: Unit, is_mh: boolean, effect?: Effect) {
         let res = 5;
         res -= this.buffManager.stats.hit;
 
-        if (this.oh && !spell) {
+        if (this.oh && !effect) {
             res += 19;
         }
         
-        const skillDiff = this.calculateWeaponSkillValue(is_mh, spell) - victim.defenseSkill;
+        const skillDiff = this.calculateWeaponSkillValue(is_mh, effect) - victim.defenseSkill;
 
         if (skillDiff < -10) {
             res -= (skillDiff + 10) * 0.4 - 2;
@@ -268,18 +268,18 @@ export class Player extends Unit {
         return (10000 - (miss_chance + dodge_chance + glance_chance)) / 100;
     }
 
-    rollMeleeHitOutcome(victim: Unit, is_mh: boolean, spell?: Spell): MeleeHitOutcome {
+    rollMeleeHitOutcome(victim: Unit, is_mh: boolean, effect?: Effect): MeleeHitOutcome {
         const roll = urand(0, 10000);
         let sum = 0;
         let tmp = 0;
 
         // rounding instead of truncating because 19.4 * 100 was truncating to 1939.
-        const miss_chance = Math.round(this.calculateMissChance(victim, is_mh, spell) * 100);
+        const miss_chance = Math.round(this.calculateMissChance(victim, is_mh, effect) * 100);
         const dodge_chance = Math.round(victim.dodgeChance * 100);
-        const crit_chance = Math.round(this.calculateCritChance(victim, is_mh, spell) * 100);
+        const crit_chance = Math.round(this.calculateCritChance(victim, is_mh, effect) * 100);
 
         // weapon skill - target defense (usually negative)
-        const skillBonus = 4 * (this.calculateWeaponSkillValue(is_mh, spell) - victim.maxSkillForLevel);
+        const skillBonus = 4 * (this.calculateWeaponSkillValue(is_mh, effect) - victim.maxSkillForLevel);
 
         tmp = miss_chance;
 
@@ -293,7 +293,7 @@ export class Player extends Unit {
             return MeleeHitOutcome.MELEE_HIT_DODGE;
         }
 
-        if (!spell) { // spells can't glance
+        if (!effect) { // spells can't glance
             tmp = (10 + (victim.defenseSkill - 300) * 2) * 100;
             tmp = clamp(tmp, 0, 4000);
     
@@ -311,7 +311,7 @@ export class Player extends Unit {
         return MeleeHitOutcome.MELEE_HIT_NORMAL;
     }
 
-    calculateBonusDamage(rawDamage: number, victim: Unit, spell?: Spell) {
+    calculateBonusDamage(rawDamage: number, victim: Unit, effect?: Effect) {
         let damageWithBonus = rawDamage;
 
         damageWithBonus *= this.buffManager.stats.damageMult;
@@ -319,10 +319,10 @@ export class Player extends Unit {
         return damageWithBonus;
     }
 
-    calculateMeleeDamage(rawDamage: number, victim: Unit, is_mh: boolean, spell?: Spell): [number, MeleeHitOutcome, number] {
-        const damageWithBonus = this.calculateBonusDamage(rawDamage, victim, spell);
+    calculateMeleeDamage(rawDamage: number, victim: Unit, is_mh: boolean, effect?: Effect): [number, MeleeHitOutcome, number] {
+        const damageWithBonus = this.calculateBonusDamage(rawDamage, victim, effect);
         const armorReduced = victim.calculateArmorReducedDamage(damageWithBonus, this);
-        const hitOutcome = this.rollMeleeHitOutcome(victim, is_mh, spell);
+        const hitOutcome = this.rollMeleeHitOutcome(victim, is_mh, effect);
 
         let damage = armorReduced;
         let cleanDamage = 0;
@@ -360,7 +360,7 @@ export class Player extends Unit {
         return [damage, hitOutcome, cleanDamage];
     }
 
-    updateProcs(time: number, is_mh: boolean, hitOutcome: MeleeHitOutcome, damageDone: number, cleanDamage: number, spell?: Spell) {
+    updateProcs(time: number, is_mh: boolean, hitOutcome: MeleeHitOutcome, damageDone: number, cleanDamage: number, effect?: Effect) {
         if (![MeleeHitOutcome.MELEE_HIT_MISS, MeleeHitOutcome.MELEE_HIT_DODGE, MeleeHitOutcome.MELEE_HIT_PARRY].includes(hitOutcome)) {
             // what is the order of checking for procs like hoj, ironfoe and windfury
             // on LH core it is hoj > ironfoe > windfury
@@ -372,56 +372,52 @@ export class Player extends Unit {
         }
     }
 
-    dealMeleeDamage(time: number, rawDamage: number, target: Unit, is_mh: boolean, spell?: Spell) {
-        let [damageDone, hitOutcome, cleanDamage] = this.calculateMeleeDamage(rawDamage, target, is_mh, spell);
+    dealMeleeDamage(time: number, rawDamage: number, target: Unit, is_mh: boolean, effect?: Effect) {
+        let [damageDone, hitOutcome, cleanDamage] = this.calculateMeleeDamage(rawDamage, target, is_mh, effect);
         damageDone = Math.trunc(damageDone); // truncating here because warrior subclass builds on top of calculateMeleeDamage
         cleanDamage = Math.trunc(cleanDamage); // TODO, should damageMult affect clean damage as well? if so move it into calculateMeleeDamage
 
         this.damageLog.push([time, damageDone]);
         
         if (this.log) {
-            let hitStr = `Your ${spell ? spell.name : (is_mh ? 'main-hand' : 'off-hand')} ${hitOutcomeString[hitOutcome]}`;
+            let hitStr = `Your ${effect ? effect.parent!.name : (is_mh ? 'main-hand' : 'off-hand')} ${hitOutcomeString[hitOutcome]}`;
             if (![MeleeHitOutcome.MELEE_HIT_MISS, MeleeHitOutcome.MELEE_HIT_DODGE, MeleeHitOutcome.MELEE_HIT_PARRY].includes(hitOutcome)) {
                 hitStr += ` for ${damageDone}`;
             }
             this.log(time, hitStr);
         }
 
-        if (spell instanceof SpellDamage) {
-            if (spell.callback) {
+        if (effect instanceof SpellDamageEffect) {
+            if (effect.callback) {
                 // calling this before update procs because in the case of execute, unbridled wrath could proc
                 // then setting the rage to 0 would cause us to lose the 1 rage from unbridled wrath
                 // alternative is to save the amount of rage used for the ability
-                spell.callback(this, hitOutcome);
+                effect.callback(this, hitOutcome);
             }
         }
 
-        if (!spell || spell.canProc) {
-            this.updateProcs(time, is_mh, hitOutcome, damageDone, cleanDamage, spell);
+        if (!effect || effect.canProc) {
+            this.updateProcs(time, is_mh, hitOutcome, damageDone, cleanDamage, effect);
             this.buffManager.update(time);
         }
     }
 
-    dealSpellDamage(time: number, rawDamage: number, target: Unit, spell: Spell) {
+    dealSpellDamage(time: number, rawDamage: number, target: Unit, effect: Effect) {
         const damageDone = rawDamage;
 
         this.damageLog.push([time, damageDone]);
 
         if (this.log) {
-            this.log(time, `${spell.name} hits for ${damageDone}`);
+            this.log(time, `${effect.parent!.name} hits for ${damageDone}`);
         }
     }
 
     protected swingWeapon(time: number, target: Unit, is_mh: boolean) {
-        const rawDamage = this.calculateSwingRawDamage(is_mh);
-        
         if (!this.doingExtraAttacks && is_mh && this.queuedSpell && this.queuedSpell.canCast(time)) {
             this.queuedSpell.cast(time);
-            const swingSpell = this.queuedSpell.spell;
             this.queuedSpell = undefined;
-            const bonusDamage = swingSpell.bonusDamage;
-            this.dealMeleeDamage(time, rawDamage + bonusDamage, target, is_mh, swingSpell);
         } else {
+            const rawDamage = this.calculateSwingRawDamage(is_mh);
             this.dealMeleeDamage(time, rawDamage, target, is_mh);
         }
 

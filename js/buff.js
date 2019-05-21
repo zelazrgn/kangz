@@ -168,10 +168,14 @@ class BuffApplication {
     }
 }
 export class BuffOverTime extends Buff {
-    constructor(name, duration, stats, updateInterval, updateF) {
+    constructor(name, duration, stats, updateInterval, effect) {
         super(name, duration, stats);
-        this.updateF = updateF;
         this.updateInterval = updateInterval;
+        effect.parent = this;
+        this.effect = effect;
+    }
+    run(player, time) {
+        this.effect.run(player, time);
     }
 }
 class BuffOverTimeApplication extends BuffApplication {
@@ -188,7 +192,7 @@ class BuffOverTimeApplication extends BuffApplication {
     update(time) {
         if (time >= this.nextUpdate) {
             this.nextUpdate += this.buff.updateInterval;
-            this.buff.updateF(this.player, time);
+            this.buff.run(this.player, time);
         }
     }
 }

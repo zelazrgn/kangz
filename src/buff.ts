@@ -1,6 +1,6 @@
 import { Stats, StatValues } from "./stats.js";
 import { Player } from "./player.js";
-import { Proc } from "./spell.js";
+import { Proc, Effect } from "./spell.js";
 
 export class BuffManager {
     player: Player;
@@ -215,13 +215,19 @@ class BuffApplication {
 }
 
 export class BuffOverTime extends Buff {
-    updateF: (player: Player, time: number) => void;
-    updateInterval: number
+    updateInterval: number;
+    effect: Effect;
 
-    constructor(name: string, duration: number, stats: StatValues|undefined, updateInterval: number, updateF: (player: Player, time: number) => void) {
+    constructor(name: string, duration: number, stats: StatValues|undefined, updateInterval: number, effect: Effect) {
         super(name, duration, stats);
-        this.updateF = updateF;
         this.updateInterval = updateInterval;
+
+        effect.parent = this;
+        this.effect = effect;
+    }
+
+    run(player: Player, time: number) {
+        this.effect.run(player, time);
     }
 }
 
@@ -245,7 +251,7 @@ class BuffOverTimeApplication extends BuffApplication {
     update(time: number) {
         if (time >= this.nextUpdate) {
             this.nextUpdate += this.buff.updateInterval;
-            this.buff.updateF(this.player, time);
+            this.buff.run(this.player, time);
         }
     }
 }

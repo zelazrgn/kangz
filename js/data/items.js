@@ -1,5 +1,5 @@
 import { WeaponType, ItemSlot } from "../item.js";
-import { SpellBuff, ExtraAttack, Proc, SpellType, ItemSpellDamage, SpellDamage, SpellFamily } from "../spell.js";
+import { SpellBuff, ExtraAttack, Proc, EffectType, ItemSpellDamage, SpellDamage } from "../spell.js";
 import { Buff, BuffProc } from "../buff.js";
 export const items = [
     {
@@ -45,7 +45,7 @@ export const items = [
         min: 128,
         max: 238,
         speed: 2.8,
-        onequip: new Proc(new SpellDamage("Electric Discharge", [100, 151], SpellType.MAGIC, SpellFamily.NONE), { ppm: 3 })
+        onequip: new Proc(new SpellDamage("Electric Discharge", [100, 151], EffectType.MAGIC), { ppm: 3 })
     },
     {
         name: "Hand of Justice",
@@ -200,7 +200,7 @@ export const items = [
         min: 100,
         max: 187,
         speed: 2.6,
-        onhit: new Proc(new ItemSpellDamage("Fatal Wounds", 240, SpellType.PHYSICAL), { ppm: 1.3 })
+        onhit: new Proc(new ItemSpellDamage("Fatal Wounds", 240, EffectType.PHYSICAL), { ppm: 1.3 })
     },
     {
         name: "Chromatically Tempered Sword",

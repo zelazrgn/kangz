@@ -3,34 +3,61 @@ import { Buff } from "./buff.js";
 import { WeaponDescription } from "./item.js";
 import { urand } from "./math.js";
 
-export enum SpellFamily {
+export enum EffectFamily {
     NONE,
     WARRIOR,
 }
 
-export class Spell {
+export enum EffectType {
+    NONE,
+    BUFF,
+    PHYSICAL,
+    PHYSICAL_WEAPON,
+    MAGIC,
+}
+
+interface NamedObject {
     name: string;
-    type: SpellType;
-    family: SpellFamily;
-    is_gcd: boolean;
-    cost: number;
-    cooldown: number;
-    protected spellF: (player: Player, time: number) => void;
+}
+
+export class Effect {
+    type: EffectType;
+    family: EffectFamily;
+    parent?: NamedObject;
 
     canProc = true;
 
-    constructor(name: string, type: SpellType, family: SpellFamily, is_gcd: boolean, cost: number, cooldown: number, spellF: (player: Player, time: number) => void) {
-        this.name = name;
+    constructor(type: EffectType, family = EffectFamily.NONE) {
         this.type = type;
         this.family = family;
+    }
+
+    run(player: Player, time: number) {}
+}
+
+export class Spell {
+    name: string;
+    is_gcd: boolean;
+    cost: number;
+    cooldown: number;
+    protected effects: Effect[];
+
+    constructor(name: string, is_gcd: boolean, cost: number, cooldown: number, effects: Effect | Effect[]) {
+        this.name = name;
         this.cost = cost;
         this.cooldown = cooldown;
         this.is_gcd = is_gcd;
-        this.spellF = spellF;
+        this.effects = Array.isArray(effects) ? effects : [effects];
+
+        for (let effect of this.effects) {
+            effect.parent = this; // currently only used for logging. don't really want to do this
+        }
     }
 
     cast(player: Player, time: number) {
-        return this.spellF(player, time);
+        for (let effect of this.effects) {
+            effect.run(player, time);
+        }
     }
 }
 
@@ -87,12 +114,39 @@ export class LearnedSpell {
     }
 }
 
-export class SwingSpell extends Spell {
+export class ModifyPowerEffect extends Effect {
+    amount: number;
+
+    constructor(amount: number) {
+        super(EffectType.NONE);
+        this.amount = amount;
+    }
+    
+    run(player: Player, time: number) {
+        player.power += this.amount;
+        if (player.log) player.log(time, `You gain ${this.amount} rage from ${this.parent!.name}`);
+    }
+}
+
+export class SwingEffect extends Effect {
     bonusDamage: number;
 
-    constructor(name: string, family: SpellFamily, bonusDamage: number, cost: number) {
-        super(name, SpellType.PHYSICAL_WEAPON, family, false, cost, 0, () => {});
+    constructor(bonusDamage: number, family?: EffectFamily) {
+        super(EffectType.PHYSICAL_WEAPON, family);
         this.bonusDamage = bonusDamage;
+    }
+
+    run(player: Player, time: number) {
+        const is_mh = true;
+        const rawDamage = player.calculateSwingRawDamage(is_mh);
+        player.dealMeleeDamage(time, rawDamage + this.bonusDamage, player.target!, is_mh, this);
+    }
+}
+
+export class SwingSpell extends Spell {
+
+    constructor(name: string, family: EffectFamily, bonusDamage: number, cost: number) {
+        super(name, false, cost, 0, new SwingEffect(bonusDamage, family));
     }
 }
 
@@ -105,52 +159,83 @@ export class LearnedSwingSpell extends LearnedSpell {
     }
 }
 
-export enum SpellType {
-    NONE,
-    BUFF,
-    PHYSICAL,
-    PHYSICAL_WEAPON,
-    MAGIC,
-}
-
 export type SpellHitOutcomeCallback = (player: Player, hitOutcome: MeleeHitOutcome) => void;
 
-export class SpellDamage extends Spell {
+type SpellDamageAmount = number|[number, number]|((player: Player) => number);
+
+export class SpellDamageEffect extends Effect {
     callback?: SpellHitOutcomeCallback;
+    amount: SpellDamageAmount;
 
-    constructor(name: string, amount: number|[number, number]|((player: Player) => number), type: SpellType, family: SpellFamily, is_gcd = false, cost = 0, cooldown = 0, callback?: SpellHitOutcomeCallback) {
-        super(name, type, family, is_gcd, cost, cooldown, (player: Player, time: number) => {
-            const dmg = (amount instanceof Function) ? amount(player) : (Array.isArray(amount) ? urand(...amount) : amount);
-            
-            if (type === SpellType.PHYSICAL || type === SpellType.PHYSICAL_WEAPON) {
-                player.dealMeleeDamage(time, dmg, player.target!, true, this);
-            } else if (type === SpellType.MAGIC) {
-                player.dealSpellDamage(time, dmg, player.target!, this);
-            }
-        });
-
+    constructor(type: EffectType, family: EffectFamily, amount: SpellDamageAmount, callback?: SpellHitOutcomeCallback) {
+        super(type, family);
+        this.amount = amount;
         this.callback = callback;
+    }
+
+    private calculateAmount(player: Player) {
+        return (this.amount instanceof Function) ? this.amount(player) : (Array.isArray(this.amount) ? urand(...this.amount) :this.amount)
+    }
+
+    run(player: Player, time: number) {            
+        if (this.type === EffectType.PHYSICAL || this.type === EffectType.PHYSICAL_WEAPON) {
+            player.dealMeleeDamage(time, this.calculateAmount(player), player.target!, true, this);
+        } else if (this.type === EffectType.MAGIC) {
+            player.dealSpellDamage(time, this.calculateAmount(player), player.target!, this);
+        }
+    }
+}
+
+export class SpellDamage extends Spell {
+    constructor(name: string, amount: SpellDamageAmount, type: EffectType, family = EffectFamily.NONE, is_gcd = false, cost = 0, cooldown = 0, callback?: SpellHitOutcomeCallback) {
+        super(name, is_gcd, cost, cooldown, new SpellDamageEffect(type, family, amount, callback));
     }
 }
 
 export class ItemSpellDamage extends SpellDamage {
     canProc = false; // TODO - confirm this is blizzlike, also some item procs may be able to proc but on LH core, fatal wound can't
 
-    constructor(name: string, amount: number|((player: Player) => number), type: SpellType) {
-        super(name, amount, type, SpellFamily.NONE);
+    constructor(name: string, amount: SpellDamageAmount, type: EffectType) {
+        super(name, amount, type, EffectFamily.NONE);
+    }
+}
+
+export class ExtraAttackEffect extends Effect {
+    count: number;
+
+    constructor(count: number) {
+        super(EffectType.NONE);
+        this.count = count;
+    }
+
+    run(player: Player, time: number) {
+        if (player.extraAttackCount) {
+            // can't proc extra attack during an extra attack
+            return;
+        }
+
+        player.extraAttackCount += this.count; // LH code does not allow multiple auto attacks to stack if they proc together. Blizzlike may allow them to stack 
+        if (player.log) player.log(time, `Gained ${this.count} extra attacks from ${this.parent!.name}`);
     }
 }
 
 export class ExtraAttack extends Spell {
     constructor(name: string, count: number) {
         // spelltype doesn't matter
-        super(name, SpellType.NONE, SpellFamily.NONE, false, 0, 0, (player: Player, time: number) => {
-            if (player.extraAttackCount) {
-                return;
-            }
-            player.extraAttackCount += count; // LH code does not allow multiple auto attacks to stack if they proc together. Blizzlike may allow them to stack 
-            if (player.log) player.log(time, `Gained ${count} extra attacks from ${name}`);
-        });
+        super(name, false, 0, 0, new ExtraAttackEffect(count));
+    }
+}
+
+export class SpellBuffEffect extends Effect {
+    buff: Buff;
+
+    constructor(buff: Buff) {
+        super(EffectType.BUFF);
+        this.buff = buff;
+    }
+
+    run(player: Player, time: number) {
+        player.buffManager.add(this.buff, time);
     }
 }
 
@@ -158,9 +243,7 @@ export class SpellBuff extends Spell {
     buff: Buff;
 
     constructor(buff: Buff, is_gcd = false, cost = 0, cooldown = 0) {
-        super(`SpellBuff(${buff.name})`, SpellType.BUFF, SpellFamily.NONE, is_gcd, cost, cooldown, (player: Player, time: number) => {
-            player.buffManager.add(buff, time);
-        });
+        super(`SpellBuff(${buff.name})`, is_gcd, cost, cooldown, new SpellBuffEffect(buff));
         this.buff = buff;
     }
 }
