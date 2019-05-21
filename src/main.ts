@@ -5,7 +5,7 @@ import { StatValues, Stats } from "./stats.js";
 import { ItemSlot, ItemDescription, itemSlotHasEnchant, itemSlotHasTemporaryEnchant } from "./item.js";
 import { SimulationDescription, setupPlayer, lookupItems, lookupEnchants, lookupTemporaryEnchants, lookupBuffs } from "./simulation_utils.js";
 import { WorkerInterface } from "./worker_event_interface.js";
-import { Race } from "./player.js";
+import { Race, Faction } from "./player.js";
 import { SimulationSummary } from "./simulation.js";
 
 const realtimeEl: HTMLInputElement = <HTMLInputElement>document.getElementById('realtime')!;
@@ -37,13 +37,15 @@ for (let race of [
 raceEl.addEventListener('change', () => {
     const race = getRace();
 
+    const faction = race === Race.HUMAN ? Faction.ALLIANCE : Faction.HORDE;
+
     for (let [idx, buff] of buffs.entries()) {
-        if (buff.name.includes('Blessing of')) {
-            buffInputEls[idx].checked = race === Race.HUMAN;
+        if (buff.faction !== undefined) {
+            buffInputEls[idx].checked = !buff.disabled && buff.faction === faction; 
         }
     }
 
-    if (race === Race.ORC) {
+    if (faction === Faction.HORDE) {
         setSelect(temporaryEnchantEls, ItemSlot.MAINHAND, lookupByName(temporaryEnchants, "Windfury")!);
     } else {
         setSelect(temporaryEnchantEls, ItemSlot.MAINHAND, lookupByName(temporaryEnchants, "Elemental Sharpening Stone")!);
@@ -244,26 +246,20 @@ for (let [slot, [itemName, enchantName, temporaryEnchantName]] of DEFAULT) {
 const buffInputEls: HTMLInputElement[] = [];
 
 for (let [idx, buff] of buffs.entries()) {
-    const race = getRace();
-
-    if (race === Race.ORC) {
-        if (buff.name.includes('Blessing of')) {
-            continue;
-        }
-    }
-
     const labelEl = document.createElement('label');
     labelEl.textContent = buff.name;
 
     const inputEl = document.createElement('input');
     inputEl.type = 'checkbox';
     inputEl.value = `${idx}`;
-    inputEl.checked = true;
+    inputEl.checked = !buff.disabled;
     inputEl.addEventListener('change', updateStats);
 
     buffInputEls.push(inputEl);
 
     buffsEl.append(labelEl, inputEl);
+
+
 }
 
 function getBuffs(): number[] {
@@ -705,4 +701,4 @@ document.getElementById('startBtn')!.addEventListener('click', () => {
     }
 });
 
-updateStats();
+raceEl.dispatchEvent(new Event('change')); // hacky

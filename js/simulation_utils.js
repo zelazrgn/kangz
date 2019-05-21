@@ -1,3 +1,4 @@
+import { Buff } from "./buff.js";
 import { Warrior } from "./warrior.js";
 import { Unit } from "./unit.js";
 import { temporaryEnchants, enchants } from "./data/enchants.js";
@@ -9,7 +10,7 @@ export function setupPlayer(race, stats, equipment, enchants, temporaryEnchant, 
         player.equip(slot, item, enchants.get(slot), temporaryEnchant.get(slot));
     }
     for (let buff of buffs) {
-        player.buffManager.add(buff, 0);
+        player.buffManager.add(new Buff(buff.name, buff.duration, buff.stats), 0);
     }
     const boss = new Unit(63, 4691 - 2250 - 640 - 505 - 600);
     player.target = boss;

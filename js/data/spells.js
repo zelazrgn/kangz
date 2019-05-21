@@ -1,4 +1,4 @@
-import { Buff } from "../buff.js";
+import { Faction } from "../player.js";
 export const buffs = [
     {
         name: "Battle Shout",
@@ -24,6 +24,7 @@ export const buffs = [
     },
     {
         name: "Blessing of Kings",
+        faction: Faction.ALLIANCE,
         duration: 15 * 60,
         stats: {
             statMult: 1.1
@@ -31,9 +32,27 @@ export const buffs = [
     },
     {
         name: "Blessing of Might",
+        faction: Faction.ALLIANCE,
         duration: 15 * 60,
         stats: {
             ap: 222
+        }
+    },
+    {
+        name: "Strength of Earth",
+        faction: Faction.HORDE,
+        duration: 15 * 60,
+        stats: {
+            str: 77 * 1.15
+        }
+    },
+    {
+        name: "Grace of Air",
+        faction: Faction.HORDE,
+        disabled: true,
+        duration: 15 * 60,
+        stats: {
+            agi: 77 * 1.15
         }
     },
     {
@@ -110,5 +129,5 @@ export const buffs = [
             haste: 1.15
         }
     },
-].map((bd) => new Buff(bd.name, bd.duration, bd.stats));
+];
 //# sourceMappingURL=spells.js.map

@@ -1,14 +1,17 @@
 import { Buff } from "../buff.js";
 import { StatValues } from "../stats.js";
+import { Faction } from "../player.js";
 
 
-interface BuffDescription {
+export interface BuffDescription {
     name: string,
     duration: number,
     stats?: StatValues,
+    faction?: Faction,
+    disabled?: boolean,
 }
 
-export const buffs: Buff[] = [
+export const buffs: BuffDescription[] = [
     {
         name: "Battle Shout",
         duration: 2 * 60,
@@ -33,6 +36,7 @@ export const buffs: Buff[] = [
     },
     {
         name: "Blessing of Kings",
+        faction: Faction.ALLIANCE,
         duration: 15 * 60,
         stats: {
             statMult: 1.1
@@ -40,9 +44,27 @@ export const buffs: Buff[] = [
     },
     {
         name: "Blessing of Might",
+        faction: Faction.ALLIANCE,
         duration: 15 * 60,
         stats: {
             ap: 222
+        }
+    },
+    {
+        name: "Strength of Earth",
+        faction: Faction.HORDE,
+        duration: 15 * 60,
+        stats: {
+            str: 77 * 1.15 // assuming enhancing totems
+        }
+    },
+    {
+        name: "Grace of Air",
+        faction: Faction.HORDE,
+        disabled: true,
+        duration: 15 * 60,
+        stats: {
+            agi: 77 * 1.15 // assuming enhancing totems
         }
     },
     {
@@ -119,4 +141,4 @@ export const buffs: Buff[] = [
             haste: 1.15
         }
     },
-].map((bd: BuffDescription) => new Buff(bd.name, bd.duration, bd.stats));
+];

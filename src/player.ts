@@ -12,6 +12,11 @@ export enum Race {
     ORC,
 }
 
+export enum Faction {
+    ALLIANCE,
+    HORDE,
+}
+
 export enum MeleeHitOutcome {
     MELEE_HIT_EVADE,
     MELEE_HIT_MISS,

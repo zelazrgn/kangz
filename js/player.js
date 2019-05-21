@@ -10,6 +10,11 @@ export var Race;
     Race[Race["HUMAN"] = 0] = "HUMAN";
     Race[Race["ORC"] = 1] = "ORC";
 })(Race || (Race = {}));
+export var Faction;
+(function (Faction) {
+    Faction[Faction["ALLIANCE"] = 0] = "ALLIANCE";
+    Faction[Faction["HORDE"] = 1] = "HORDE";
+})(Faction || (Faction = {}));
 export var MeleeHitOutcome;
 (function (MeleeHitOutcome) {
     MeleeHitOutcome[MeleeHitOutcome["MELEE_HIT_EVADE"] = 0] = "MELEE_HIT_EVADE";

@@ -6,7 +6,7 @@ import { Unit } from "./unit.js";
 import { ItemSlot, ItemDescription } from "./item.js";
 import { EnchantDescription, temporaryEnchants, enchants } from "./data/enchants.js";
 import { items } from "./data/items.js";
-import { buffs } from "./data/spells.js";
+import { buffs, BuffDescription } from "./data/spells.js";
 
 export interface SimulationDescription {
     race: Race,
@@ -22,7 +22,7 @@ export interface SimulationDescription {
     bloodthirstExecRageLimit: number,
 }
 
-export function setupPlayer(race: Race, stats: StatValues, equipment: Map<ItemSlot, ItemDescription>, enchants: Map<ItemSlot, EnchantDescription>, temporaryEnchant: Map<ItemSlot, EnchantDescription>, buffs: Buff[], log?: LogFunction) {
+export function setupPlayer(race: Race, stats: StatValues, equipment: Map<ItemSlot, ItemDescription>, enchants: Map<ItemSlot, EnchantDescription>, temporaryEnchant: Map<ItemSlot, EnchantDescription>, buffs: BuffDescription[], log?: LogFunction) {
     const player = new Warrior(race, stats, log);
 
     for (let [slot, item] of equipment) {
@@ -30,7 +30,7 @@ export function setupPlayer(race: Race, stats: StatValues, equipment: Map<ItemSl
     }
 
     for (let buff of buffs) {
-        player.buffManager.add(buff, 0);
+        player.buffManager.add(new Buff(buff.name, buff.duration, buff.stats), 0);
     }
 
     const boss = new Unit(63, 4691 - 2250 - 640 - 505 - 600); // sunder, cor, ff, annih

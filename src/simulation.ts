@@ -4,6 +4,7 @@ import { Buff } from "./buff.js";
 import { LogFunction, Player, Race, DamageLog } from "./player.js";
 import { setupPlayer } from "./simulation_utils.js";
 import { EnchantDescription } from "./data/enchants.js";
+import { BuffDescription } from "./data/spells.js";
 
 export type ItemWithSlot = [ItemDescription, ItemSlot];
 
@@ -19,7 +20,7 @@ class Fight {
     fightLength: number;
     duration = 0;
 
-    constructor(race: Race, stats: StatValues, equipment: Map<ItemSlot, ItemDescription>, enchants: Map<ItemSlot, EnchantDescription>, temporaryEnchants: Map<ItemSlot, EnchantDescription>, buffs: Buff[], chooseAction: ChooseAction, fightLength = 60, log?: LogFunction) {
+    constructor(race: Race, stats: StatValues, equipment: Map<ItemSlot, ItemDescription>, enchants: Map<ItemSlot, EnchantDescription>, temporaryEnchants: Map<ItemSlot, EnchantDescription>, buffs: BuffDescription[], chooseAction: ChooseAction, fightLength = 60, log?: LogFunction) {
         this.player = setupPlayer(race, stats, equipment, enchants, temporaryEnchants, buffs, log);
         this.chooseAction = chooseAction;
         this.fightLength = (fightLength + Math.random() * 4 - 2) * 1000;
@@ -133,7 +134,7 @@ export class Simulation {
     equipment: Map<ItemSlot, ItemDescription>;
     enchants: Map<ItemSlot, EnchantDescription>;
     temporaryEnchants: Map<ItemSlot, EnchantDescription>;
-    buffs: Buff[];
+    buffs: BuffDescription[];
     chooseAction: ChooseAction;
     protected fightLength: number;
     protected realtime: boolean;
@@ -148,7 +149,7 @@ export class Simulation {
 
     protected cachedSummmary: SimulationSummary = { normalDamage: 0, execDamage: 0, normalDuration: 0, execDuration: 0, powerLost: 0, fights: 0 };
 
-    constructor(race: Race, stats: StatValues, equipment: Map<ItemSlot, ItemDescription>, enchants: Map<ItemSlot, EnchantDescription>, temporaryEnchants: Map<ItemSlot, EnchantDescription>, buffs: Buff[], chooseAction: ChooseAction, fightLength = 60, realtime = false, log?: LogFunction) {
+    constructor(race: Race, stats: StatValues, equipment: Map<ItemSlot, ItemDescription>, enchants: Map<ItemSlot, EnchantDescription>, temporaryEnchants: Map<ItemSlot, EnchantDescription>, buffs: BuffDescription[], chooseAction: ChooseAction, fightLength = 60, realtime = false, log?: LogFunction) {
         this.race = race;
         this.stats = stats;
         this.equipment = equipment;
