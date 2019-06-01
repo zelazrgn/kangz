@@ -1,4 +1,4 @@
-import { WeaponEquiped, WeaponType, ItemDescription, ItemEquiped, ItemSlot, isEquipedWeapon, isWeapon } from "./item.js";
+import { WeaponEquiped, WeaponType, ItemDescription, ItemEquiped, ItemSlot, isEquipedWeapon, isWeapon, normalizedWeaponSpeed } from "./item.js";
 import { Unit } from "./unit.js";
 import { urand, clamp, frand } from "./math.js";
 import { BuffManager } from "./buff.js";
@@ -247,10 +247,10 @@ export class Player extends Unit {
         return 0;
     }
 
-    protected calculateSwingMinMaxDamage(is_mh: boolean): [number, number] {
+    protected calculateSwingMinMaxDamage(is_mh: boolean, normalized = false): [number, number] {
         const weapon = is_mh ? this.mh! : this.oh!;
 
-        const ap_bonus = this.ap / 14 * weapon.weapon.speed;
+        const ap_bonus = this.ap / 14 * (normalized ? normalizedWeaponSpeed[weapon.weapon.type] : weapon.weapon.speed);
 
         const ohPenalty = is_mh ? 1 : 0.625; // TODO - check talents, implemented as an aura SPELL_AURA_MOD_OFFHAND_DAMAGE_PCT
 
@@ -260,8 +260,8 @@ export class Player extends Unit {
         ];
     }
 
-    calculateSwingRawDamage(is_mh: boolean) {
-        return frand(...this.calculateSwingMinMaxDamage(is_mh));
+    calculateSwingRawDamage(is_mh: boolean, normalized = false) {
+        return frand(...this.calculateSwingMinMaxDamage(is_mh, normalized));
     }
 
     critCap() {

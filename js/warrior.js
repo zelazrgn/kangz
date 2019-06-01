@@ -93,7 +93,7 @@ const bloodthirstSpell = new SpellDamage("Bloodthirst", (player) => {
     return player.ap * 0.45;
 }, EffectType.PHYSICAL, EffectFamily.WARRIOR, true, 30, 6);
 const whirlwindSpell = new SpellDamage("Whirlwind", (player) => {
-    return player.calculateSwingRawDamage(true);
+    return player.calculateSwingRawDamage(true, true);
 }, EffectType.PHYSICAL_WEAPON, EffectFamily.WARRIOR, true, 25, 10);
 const hamstringSpell = new SpellDamage("Hamstring", 45, EffectType.PHYSICAL_WEAPON, EffectFamily.WARRIOR, true, 10, 0);
 export const angerManagementOT = new BuffOverTime("Anger Management", Number.MAX_SAFE_INTEGER, undefined, 3000, new ModifyPowerEffect(1));

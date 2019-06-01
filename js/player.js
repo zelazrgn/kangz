@@ -1,4 +1,4 @@
-import { WeaponEquiped, WeaponType, ItemEquiped, ItemSlot, isEquipedWeapon, isWeapon } from "./item.js";
+import { WeaponEquiped, WeaponType, ItemEquiped, ItemSlot, isEquipedWeapon, isWeapon, normalizedWeaponSpeed } from "./item.js";
 import { Unit } from "./unit.js";
 import { urand, clamp, frand } from "./math.js";
 import { BuffManager } from "./buff.js";
@@ -189,17 +189,17 @@ export class Player extends Unit {
     get ap() {
         return 0;
     }
-    calculateSwingMinMaxDamage(is_mh) {
+    calculateSwingMinMaxDamage(is_mh, normalized = false) {
         const weapon = is_mh ? this.mh : this.oh;
-        const ap_bonus = this.ap / 14 * weapon.weapon.speed;
+        const ap_bonus = this.ap / 14 * (normalized ? normalizedWeaponSpeed[weapon.weapon.type] : weapon.weapon.speed);
         const ohPenalty = is_mh ? 1 : 0.625;
         return [
             (weapon.min + ap_bonus) * ohPenalty,
             (weapon.max + ap_bonus) * ohPenalty
         ];
     }
-    calculateSwingRawDamage(is_mh) {
-        return frand(...this.calculateSwingMinMaxDamage(is_mh));
+    calculateSwingRawDamage(is_mh, normalized = false) {
+        return frand(...this.calculateSwingMinMaxDamage(is_mh, normalized));
     }
     critCap() {
         const skillBonus = 4 * (this.calculateWeaponSkillValue(true) - this.target.maxSkillForLevel);

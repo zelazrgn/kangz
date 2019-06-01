@@ -67,6 +67,15 @@ export var WeaponType;
     WeaponType[WeaponType["SWORD2H"] = 5] = "SWORD2H";
     WeaponType[WeaponType["AXE2H"] = 6] = "AXE2H";
 })(WeaponType || (WeaponType = {}));
+export const normalizedWeaponSpeed = {
+    [WeaponType.MACE]: 2.4,
+    [WeaponType.SWORD]: 2.4,
+    [WeaponType.AXE]: 2.4,
+    [WeaponType.DAGGER]: 1.7,
+    [WeaponType.MACE2H]: 3.3,
+    [WeaponType.SWORD2H]: 3.3,
+    [WeaponType.AXE2H]: 3.3,
+};
 export function isWeapon(item) {
     return "speed" in item;
 }
