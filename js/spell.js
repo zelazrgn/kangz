@@ -171,11 +171,15 @@ export class SpellBuff extends Spell {
     }
 }
 export class Proc {
-    constructor(spell, rate) {
+    constructor(spell, rate, requiresSwing = false) {
         this.spells = Array.isArray(spell) ? spell : [spell];
         this.rate = rate;
+        this.requiresSwing = requiresSwing;
     }
-    run(player, weapon, time) {
+    run(player, weapon, time, triggeringEffect) {
+        if (this.requiresSwing && triggeringEffect && !(triggeringEffect instanceof SwingEffect)) {
+            return;
+        }
         const chance = this.rate.chance || this.rate.ppm * weapon.speed / 60;
         if (Math.random() <= chance) {
             for (let spell of this.spells) {

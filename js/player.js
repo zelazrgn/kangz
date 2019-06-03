@@ -282,7 +282,7 @@ export class Player extends Unit {
     updateProcs(time, is_mh, hitOutcome, damageDone, cleanDamage, effect) {
         if (![MeleeHitOutcome.MELEE_HIT_MISS, MeleeHitOutcome.MELEE_HIT_DODGE, MeleeHitOutcome.MELEE_HIT_PARRY].includes(hitOutcome)) {
             for (let proc of this.procs) {
-                proc.run(this, (is_mh ? this.mh : this.oh).weapon, time);
+                proc.run(this, (is_mh ? this.mh : this.oh).weapon, time, effect);
             }
             (is_mh ? this.mh : this.oh).proc(time);
         }
@@ -328,6 +328,9 @@ export class Player extends Unit {
         const [thisWeapon, otherWeapon] = is_mh ? [this.mh, this.oh] : [this.oh, this.mh];
         thisWeapon.nextSwingTime = time + thisWeapon.weapon.speed / this.buffManager.stats.haste * 1000;
         if (otherWeapon && otherWeapon.nextSwingTime < time + 200) {
+            if (this.log) {
+                this.log(time, `delaying ${is_mh ? 'OH' : 'MH'} swing ${time + 200 - otherWeapon.nextSwingTime}`);
+            }
             otherWeapon.nextSwingTime = time + 200;
         }
     }

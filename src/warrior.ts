@@ -150,5 +150,6 @@ const bloodRage = new Spell("Bloodrage", false, 0, 60, [
 
 const deathWish = new SpellBuff(new Buff("Death Wish", 30, { damageMult: 1.2 }), true, 10, 3 * 60);
 
+// unbridled wrath only procs from autoattack/heroic strike/cleave
 const unbridledWrath = new BuffProc("Unbridled Wrath", 60 * 60,
-    new Proc(new Spell("Unbridled Wrath", false, 0, 0, new ModifyPowerEffect(1)), {chance: 40}));
+    new Proc(new Spell("Unbridled Wrath", false, 0, 0, new ModifyPowerEffect(1)), {chance: 0.4}, true));

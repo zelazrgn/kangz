@@ -365,13 +365,13 @@ export class Player extends Unit {
         return [damage, hitOutcome, cleanDamage];
     }
 
-    updateProcs(time: number, is_mh: boolean, hitOutcome: MeleeHitOutcome, damageDone: number, cleanDamage: number, effect?: Effect) {
+    protected updateProcs(time: number, is_mh: boolean, hitOutcome: MeleeHitOutcome, damageDone: number, cleanDamage: number, effect?: Effect) {
         if (![MeleeHitOutcome.MELEE_HIT_MISS, MeleeHitOutcome.MELEE_HIT_DODGE, MeleeHitOutcome.MELEE_HIT_PARRY].includes(hitOutcome)) {
             // what is the order of checking for procs like hoj, ironfoe and windfury
             // on LH core it is hoj > ironfoe > windfury
             // so do item procs first, then weapon proc, then windfury
             for (let proc of this.procs) {
-                proc.run(this, (is_mh ? this.mh! : this.oh!).weapon, time);
+                proc.run(this, (is_mh ? this.mh! : this.oh!).weapon, time, effect);
             }
             (is_mh ? this.mh! : this.oh!).proc(time);
         }
@@ -431,7 +431,9 @@ export class Player extends Unit {
         thisWeapon!.nextSwingTime = time + thisWeapon!.weapon.speed / this.buffManager.stats.haste * 1000;
 
         if (otherWeapon && otherWeapon.nextSwingTime < time + 200) {
-            // console.log(`delaying ${is_mh ? 'OH' : 'MH'} swing`, time + 200 - otherWeapon.nextSwingTime);
+            if (this.log) {
+                this.log(time, `delaying ${is_mh ? 'OH' : 'MH'} swing ${time + 200 - otherWeapon.nextSwingTime}`);
+            }
             otherWeapon.nextSwingTime = time + 200;
         }
     }

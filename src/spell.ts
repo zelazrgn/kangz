@@ -255,13 +255,19 @@ type rate = ppm | chance;
 export class Proc {
     protected spells: Spell[];
     protected rate: rate;
+    protected requiresSwing: boolean;
 
-    constructor(spell: Spell | Spell[], rate: rate) {
+    constructor(spell: Spell | Spell[], rate: rate, requiresSwing = false) {
         this.spells = Array.isArray(spell) ? spell : [spell];
         this.rate = rate;
+        this.requiresSwing = requiresSwing;
     }
 
-    run(player: Player, weapon: WeaponDescription, time: number) {
+    run(player: Player, weapon: WeaponDescription, time: number, triggeringEffect?: Effect) {
+        if (this.requiresSwing && triggeringEffect && !(triggeringEffect instanceof SwingEffect)) {
+            return; // if there is no effect, it is triggered by a normal swing
+        }
+
         const chance = (<chance>this.rate).chance || (<ppm>this.rate).ppm * weapon.speed / 60;
 
         if (Math.random() <= chance) {
