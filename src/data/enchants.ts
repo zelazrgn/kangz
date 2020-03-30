@@ -34,6 +34,11 @@ export const enchants: EnchantDescription[] = [
         stats: {agi: 15},
     },
     {
+        name: '7 Strength',
+        slot: ItemSlot.HANDS,
+        stats: {str: 7},
+    },
+    {
         name: '1 Haste',
         slot: ItemSlot.HEAD | ItemSlot.LEGS | ItemSlot.HANDS,
         stats: {haste: 1.01},
@@ -42,6 +47,11 @@ export const enchants: EnchantDescription[] = [
         name: '3 Agility',
         slot: ItemSlot.BACK,
         stats: {agi: 3},
+    },
+    {
+        name: 'Might of the Scourge',
+        slot: ItemSlot.SHOULDER,
+        stats: {ap: 26, crit: 1},
     },
     {
         name: 'ZG Enchant (30 AP)',

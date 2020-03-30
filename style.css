@@ -255,3 +255,15 @@ label {
     content: '×';
     line-height: 10px;
 }
+
+
+
+.buffUptime {
+    display: grid;
+    grid-row-gap: 2px;
+}
+
+.buffUptime > div {
+    display: grid;
+    grid-template-columns: auto min-content;
+}

@@ -5,7 +5,8 @@ import { Stats } from "./stats.js";
 import { ItemSlot, itemSlotHasEnchant, itemSlotHasTemporaryEnchant } from "./item.js";
 import { setupPlayer, lookupItems, lookupEnchants, lookupTemporaryEnchants, lookupBuffs } from "./simulation_utils.js";
 import { WorkerInterface } from "./worker_event_interface.js";
-import { Race, Faction } from "./player.js";
+import { Race, Faction, FACTION_OF_RACE, MeleeHitOutcome } from "./player.js";
+import { Unit } from "./unit.js";
 const realtimeEl = document.getElementById('realtime');
 const statContainerEL = document.getElementById('stats');
 const statEls = {};
@@ -13,25 +14,44 @@ const myStatsEl = document.getElementById('myStats');
 const simsContainerEl = document.getElementById('simsContainer');
 const raceEl = document.getElementById('race');
 const buffsEl = document.getElementById('buffs');
+const aiSettingsContainerEL = document.getElementById('ai_settings');
+const useRecklessnessEl = document.getElementById('userecklessness');
 const heroicStrikeRageReqEl = document.getElementById('heroicstrikerr');
 const hamstringRageReqEl = document.getElementById('hamstringrr');
-const bloodthirstExecRageLimitEl = document.getElementById('bloodthirstexecrl');
+const bloodthirstExecRageMinEl = document.getElementById('bloodthirstexecmin');
+const bloodthirstExecRageMaxEl = document.getElementById('bloodthirstexecmax');
+const executeMightyRageEl = document.getElementById('executemightyrage');
+const heroicStrikeInExecuteEl = document.getElementById('heroicstrikeinexecute');
+const useHeroicStrikeR9El = document.getElementById('useheroicstriker9');
+const mightyRageRageReqEl = document.getElementById('mightyragerr');
+const fightSettingsContainerEL = document.getElementById('fight_settings');
+const vaelEl = document.getElementById('vael');
 const fightLengthEl = document.getElementById('fightlength');
+const normal = new Unit(63, 336);
+const impexpose = new Unit(63, 36);
 function getRace() {
     return parseInt(raceEl.value);
 }
 for (let race of [
     Race.HUMAN,
     Race.ORC,
+    Race.GNOME,
+    Race.TROLL,
 ]) {
     const option = document.createElement('option');
     option.value = `${race}`;
     option.textContent = Race[race].toLowerCase();
     raceEl.appendChild(option);
 }
+for (let el of aiSettingsContainerEL.getElementsByTagName("input")) {
+    el.addEventListener("input", updateStats);
+}
+for (let el of fightSettingsContainerEL.getElementsByTagName("input")) {
+    el.addEventListener("input", updateStats);
+}
 raceEl.addEventListener('change', () => {
     const race = getRace();
-    const faction = race === Race.HUMAN ? Faction.ALLIANCE : Faction.HORDE;
+    const faction = FACTION_OF_RACE[race];
     for (let [idx, buff] of buffs.entries()) {
         if (buff.faction !== undefined) {
             buffInputEls[idx].checked = !buff.disabled && buff.faction === faction;
@@ -173,21 +193,21 @@ function setSelect(selectEls, key, value) {
 }
 const DEFAULT = new Map();
 DEFAULT.set(ItemSlot.MAINHAND, ["Empyrean Demolisher", "Crusader MH", "Elemental Sharpening Stone"]);
-DEFAULT.set(ItemSlot.OFFHAND, ["Anubisath Warhammer", "Crusader OH", "+8 Damage"]);
-DEFAULT.set(ItemSlot.RANGED, ["Striker's Mark"]);
-DEFAULT.set(ItemSlot.HEAD, ["Lionheart Helm", "1 Haste"]);
-DEFAULT.set(ItemSlot.NECK, ["Barbed Choker"]);
-DEFAULT.set(ItemSlot.SHOULDER, ["Conqueror's Spaulders", "ZG Enchant (30 AP)"]);
-DEFAULT.set(ItemSlot.BACK, ["Drape of Unyielding Strength", "3 Agility"]);
-DEFAULT.set(ItemSlot.CHEST, ["Breastplate of Annihilation", "Greater Stats (+4)"]);
-DEFAULT.set(ItemSlot.WRIST, ["Hive Defiler Wristguards", "9 Strength"]);
-DEFAULT.set(ItemSlot.HANDS, ["Gauntlets of Annihilation", "15 Agility"]);
-DEFAULT.set(ItemSlot.WAIST, ["Onslaught Girdle"]);
-DEFAULT.set(ItemSlot.LEGS, ["Titanic Leggings", "1 Haste"]);
+DEFAULT.set(ItemSlot.OFFHAND, ["Brutality Blade", "Crusader OH", "Elemental Sharpening Stone"]);
+DEFAULT.set(ItemSlot.RANGED, ["Bloodseeker"]);
+DEFAULT.set(ItemSlot.HEAD, ["Lionheart Helm"]);
+DEFAULT.set(ItemSlot.NECK, ["Onyxia Tooth Pendant"]);
+DEFAULT.set(ItemSlot.SHOULDER, ["Drake Talon Pauldrons"]);
+DEFAULT.set(ItemSlot.BACK, ["Cape of the Black Baron", "3 Agility"]);
+DEFAULT.set(ItemSlot.CHEST, ["Savage Gladiator Chain", "Greater Stats (+4)"]);
+DEFAULT.set(ItemSlot.WRIST, ["Wristguards of Stability", "9 Strength"]);
+DEFAULT.set(ItemSlot.HANDS, ["Gauntlets of Might", "1 Haste"]);
+DEFAULT.set(ItemSlot.WAIST, ["Omokk's Girth Restrainer"]);
+DEFAULT.set(ItemSlot.LEGS, ["Eldritch Reinforced Legplates"]);
 DEFAULT.set(ItemSlot.FEET, ["Chromatic Boots", "Run Speed"]);
 DEFAULT.set(ItemSlot.RING1, ["Quick Strike Ring"]);
-DEFAULT.set(ItemSlot.RING2, ["Master Dragonslayer's Ring"]);
-DEFAULT.set(ItemSlot.TRINKET1, ["Badge of the Swarmguard"]);
+DEFAULT.set(ItemSlot.RING2, ["Don Julio's Band"]);
+DEFAULT.set(ItemSlot.TRINKET1, ["Hand of Justice"]);
 DEFAULT.set(ItemSlot.TRINKET2, ["Diamond Flask"]);
 for (let [slot, [itemName, enchantName, temporaryEnchantName]] of DEFAULT) {
     if (itemName) {
@@ -360,9 +380,16 @@ function saveInstantSim() {
         setBuffs(simdisc.buffs);
         fightLengthEl.value = '' + simdisc.fightLength;
         realtimeEl.checked = simdisc.realtime;
+        vaelEl.checked = simdisc.vael;
+        useRecklessnessEl.checked = simdisc.useRecklessness;
         heroicStrikeRageReqEl.value = '' + simdisc.heroicStrikeRageReq;
         hamstringRageReqEl.value = '' + simdisc.hamstringRageReq;
-        bloodthirstExecRageLimitEl.value = '' + simdisc.bloodthirstExecRageLimit;
+        bloodthirstExecRageMinEl.value = '' + simdisc.bloodthirstExecRageMin;
+        bloodthirstExecRageMaxEl.value = '' + simdisc.bloodthirstExecRageMax;
+        executeMightyRageEl.checked = simdisc.executeMightyRage;
+        heroicStrikeInExecuteEl.checked = simdisc.heroicStrikeInExecute;
+        useHeroicStrikeR9El.checked = simdisc.useHeroicStrikeR9;
+        mightyRageRageReqEl.value = '' + simdisc.mightyRageRageReq;
     });
     const closeBtn = document.createElement('button');
     closeBtn.classList.add('closeBtn');
@@ -402,6 +429,44 @@ function saveInstantSim() {
         }
         const rlpm = status.powerLost / totalDuration * 1000 * 60;
         rlpmEl.textContent = `${rlpm.toFixed(1)}`;
+        const sortedBuffUptime = [];
+        for (let [buff, duration] of status.buffUptime) {
+            const uptime = duration / totalDuration;
+            if (uptime <= 1) {
+                sortedBuffUptime.push([buff, uptime]);
+            }
+        }
+        sortedBuffUptime.sort((a, b) => {
+            return b[1] - a[1];
+        });
+        buffUptimeEl.innerHTML = '';
+        for (let [buff, duration] of sortedBuffUptime) {
+            const percUptimeStr = `${(duration * 100).toFixed(2)}%`;
+            const buffUptimeRowEl = document.createElement('div');
+            const buffUptimeRowNameEl = document.createElement('div');
+            buffUptimeRowNameEl.textContent = buff;
+            const buffUptimeRowPercEl = document.createElement('div');
+            buffUptimeRowPercEl.textContent = percUptimeStr;
+            buffUptimeRowEl.style.background = `linear-gradient(to right, hsla(0, 100%, 34%, 1) ${percUptimeStr}, transparent ${percUptimeStr})`;
+            buffUptimeRowEl.appendChild(buffUptimeRowNameEl);
+            buffUptimeRowEl.appendChild(buffUptimeRowPercEl);
+            buffUptimeEl.appendChild(buffUptimeRowEl);
+        }
+        hitOutcomesEl.innerHTML = '';
+        function rhc(chance) {
+            return (chance * 100).toFixed(2) + '%';
+        }
+        for (let [ability, hitOutcomes] of status.hitStats) {
+            const hitOutcomeRowEl = document.createElement('div');
+            const miss = hitOutcomes[MeleeHitOutcome.MELEE_HIT_MISS];
+            const glance = hitOutcomes[MeleeHitOutcome.MELEE_HIT_GLANCING];
+            const dodge = hitOutcomes[MeleeHitOutcome.MELEE_HIT_DODGE];
+            const crit = hitOutcomes[MeleeHitOutcome.MELEE_HIT_CRIT];
+            const normal = hitOutcomes[MeleeHitOutcome.MELEE_HIT_NORMAL];
+            const totalHits = miss + glance + dodge + crit + normal;
+            hitOutcomeRowEl.textContent = `${ability} miss: ${rhc(miss / totalHits)} dodge: ${rhc(dodge / totalHits)} glance: ${rhc(glance / totalHits)} crit: ${rhc(crit / totalHits)}`;
+            hitOutcomesEl.appendChild(hitOutcomeRowEl);
+        }
     });
     const rlpmEl = document.createElement('div');
     rlpmEl.classList.add('rlpm');
@@ -419,7 +484,8 @@ function saveInstantSim() {
     simEl.append(chosenStatsEL);
     const fightSettings = document.createElement('div');
     fightSettings.classList.add('simDetail', 'fightSettings');
-    fightSettings.textContent = `fight length: ${parseInt(fightLengthEl.value)}, her rr: ${parseInt(heroicStrikeRageReqEl.value)}, ham rr: ${parseInt(hamstringRageReqEl.value)}, bt rl:${parseInt(bloodthirstExecRageLimitEl.value)}`;
+    fightSettings.textContent = `fight length: ${simdisc.fightLength}, her rr: ${simdisc.heroicStrikeRageReq}, ham rr: ${simdisc.hamstringRageReq}, bt exec min:${simdisc.bloodthirstExecRageMin} max:${simdisc.bloodthirstExecRageMax}
+    HS in execute: ${simdisc.heroicStrikeInExecute ? 'YES' : 'NO'}`;
     simEl.append(fightSettings);
     const itemsEl = document.createElement('div');
     itemsEl.classList.add('simDetail', 'equipment');
@@ -465,6 +531,12 @@ function saveInstantSim() {
             }
         });
     }
+    const buffUptimeEl = document.createElement('div');
+    buffUptimeEl.classList.add('simDetail', 'buffUptime');
+    simEl.append(buffUptimeEl);
+    const hitOutcomesEl = document.createElement('div');
+    hitOutcomesEl.classList.add('simDetail');
+    simEl.append(hitOutcomesEl);
     simsContainerEl.append(simEl);
     worker.send('pause', false);
 }
@@ -521,9 +593,16 @@ function startInstantSim(forceSave = false) {
         buffs: getBuffs(),
         fightLength: parseInt(fightLengthEl.value),
         realtime: realtime,
+        useRecklessness: useRecklessnessEl.checked,
         heroicStrikeRageReq: parseInt(heroicStrikeRageReqEl.value),
         hamstringRageReq: parseInt(hamstringRageReqEl.value),
-        bloodthirstExecRageLimit: parseInt(bloodthirstExecRageLimitEl.value),
+        bloodthirstExecRageMin: parseInt(bloodthirstExecRageMinEl.value),
+        bloodthirstExecRageMax: parseInt(bloodthirstExecRageMaxEl.value),
+        executeMightyRage: executeMightyRageEl.checked,
+        mightyRageRageReq: parseInt(mightyRageRageReqEl.value),
+        heroicStrikeInExecute: heroicStrikeInExecuteEl.checked,
+        useHeroicStrikeR9: useHeroicStrikeR9El.checked,
+        vael: vaelEl.checked,
     };
     previousSim = {
         worker: worker,

@@ -115,16 +115,19 @@ export class LearnedSpell {
 }
 
 export class ModifyPowerEffect extends Effect {
-    amount: number;
+    base: number;
+    randomAmount: number;
 
-    constructor(amount: number) {
+    constructor(base: number, randomAmount?: number) {
         super(EffectType.NONE);
-        this.amount = amount;
+        this.base = base;
+        this.randomAmount = randomAmount || 0;
     }
     
     run(player: Player, time: number) {
-        player.power += this.amount;
-        if (player.log) player.log(time, `You gain ${this.amount} rage from ${this.parent!.name}`);
+        const amount = this.base + Math.round(this.randomAmount * Math.random());
+        player.power += amount;
+        if (player.log) player.log(time, `You gain ${amount} rage from ${this.parent!.name}`);
     }
 }
 
@@ -159,7 +162,7 @@ export class LearnedSwingSpell extends LearnedSpell {
     }
 }
 
-export type SpellHitOutcomeCallback = (player: Player, hitOutcome: MeleeHitOutcome) => void;
+export type SpellHitOutcomeCallback = (player: Player, hitOutcome: MeleeHitOutcome, time: number) => void;
 
 type SpellDamageAmount = number|[number, number]|((player: Player) => number);
 
@@ -214,8 +217,14 @@ export class ExtraAttackEffect extends Effect {
             return;
         }
 
-        player.extraAttackCount += this.count; // LH code does not allow multiple auto attacks to stack if they proc together. Blizzlike may allow them to stack 
-        if (player.log) player.log(time, `Gained ${this.count} extra attacks from ${this.parent!.name}`);
+        const nextBatch = time;// + 400 + Math.random() * 400;
+        player.futureEvents.push({
+            time: nextBatch,
+            callback: (player: Player) => {
+                player.extraAttackCount += this.count; // LH code does not allow multiple auto attacks to stack if they proc together. Blizzlike may allow them to stack 
+                if (player.log) player.log(nextBatch, `Gained ${this.count} extra attacks from ${this.parent!.name}`);
+            }
+        });
     }
 }
 

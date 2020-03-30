@@ -3,6 +3,7 @@ export class BuffManager {
     constructor(player, baseStats) {
         this.buffList = [];
         this.buffOverTimeList = [];
+        this.buffUptimeMap = new Map();
         this.player = player;
         this.baseStats = new Stats(baseStats);
         this.stats = new Stats(this.baseStats);
@@ -62,7 +63,7 @@ export class BuffManager {
             this.buffOverTimeList.push(new BuffOverTimeApplication(this.player, buff, applyTime));
         }
         else {
-            this.buffList.push(new BuffApplication(buff, applyTime));
+            this.buffList.push(new BuffApplication(this.player, buff, applyTime));
         }
         buff.add(applyTime, this.player);
     }
@@ -79,7 +80,7 @@ export class BuffManager {
                 }
                 if (this.player.log)
                     this.player.log(time, `${buff.name} lost`);
-                buffapp.buff.remove(time, this.player);
+                buffapp.remove(time);
                 return false;
             }
             return true;
@@ -96,7 +97,7 @@ export class BuffManager {
                 }
                 if (this.player.log)
                     this.player.log(time, `${buff.name} lost`);
-                buffapp.buff.remove(time, this.player);
+                buffapp.remove(time);
                 return false;
             }
             return true;
@@ -106,23 +107,54 @@ export class BuffManager {
         const removedBuffs = [];
         this.buffList = this.buffList.filter((buffapp) => {
             if (buffapp.expirationTime <= time) {
-                removedBuffs.push(buffapp.buff);
+                removedBuffs.push(buffapp);
                 return false;
             }
             return true;
         });
         this.buffOverTimeList = this.buffOverTimeList.filter((buffapp) => {
             if (buffapp.expirationTime <= time) {
-                removedBuffs.push(buffapp.buff);
+                removedBuffs.push(buffapp);
                 return false;
             }
             return true;
         });
-        for (let buff of removedBuffs) {
-            buff.remove(time, this.player);
+        for (let buffapp of removedBuffs) {
+            buffapp.remove(time);
             if (this.player.log)
-                this.player.log(time, `${buff.name} expired`);
+                this.player.log(time, `${buffapp.buff.name} expired`);
         }
+    }
+    removeAllBuffs(time) {
+        const removedBuffs = [];
+        this.buffList = this.buffList.filter((buffapp) => {
+            removedBuffs.push(buffapp);
+            return false;
+        });
+        this.buffOverTimeList = this.buffOverTimeList.filter((buffapp) => {
+            removedBuffs.push(buffapp);
+            return false;
+        });
+        for (let buffapp of removedBuffs) {
+            buffapp.remove(time);
+        }
+    }
+}
+function updateSwingTimers(time, player, hasteScale) {
+    const currentHaste = player.buffManager.stats.haste;
+    const newHaste = currentHaste * hasteScale;
+    const weapons = [];
+    if (player.mh) {
+        weapons.push(player.mh);
+    }
+    if (player.oh) {
+        weapons.push(player.oh);
+    }
+    for (let weapon of weapons) {
+        const currentSwingTime = weapon.weapon.speed / currentHaste * 1000;
+        const currentSwingTimeRemaining = weapon.nextSwingTime - time;
+        const currentSwingProgressRemaining = currentSwingTimeRemaining / currentSwingTime;
+        weapon.nextSwingTime = time + currentSwingProgressRemaining * weapon.weapon.speed / newHaste * 1000;
     }
 }
 export class Buff {
@@ -141,16 +173,25 @@ export class Buff {
             stats.add(this.stats);
         }
     }
-    add(time, player) { }
+    add(time, player) {
+        if (this.stats && this.stats.haste) {
+            updateSwingTimers(time, player, this.stats.haste);
+        }
+    }
     remove(time, player) {
+        if (this.stats && this.stats.haste) {
+            updateSwingTimers(time, player, 1 / this.stats.haste);
+        }
         if (this.child) {
             player.buffManager.remove(this.child, time, true);
         }
     }
 }
 class BuffApplication {
-    constructor(buff, applyTime) {
+    constructor(player, buff, applyTime) {
+        this.player = player;
         this.buff = buff;
+        this.applyTime = applyTime;
         this.refresh(applyTime);
     }
     refresh(time) {
@@ -159,6 +200,12 @@ class BuffApplication {
         if (this.buff.duration > 60) {
             this.expirationTime = Number.MAX_SAFE_INTEGER;
         }
+    }
+    remove(time) {
+        this.buff.remove(time, this.player);
+        const previousUptime = this.player.buffManager.buffUptimeMap.get(this.buff.name) || 0;
+        const currentUptime = time - this.applyTime;
+        this.player.buffManager.buffUptimeMap.set(this.buff.name, previousUptime + currentUptime);
     }
     get stacks() {
         return this.stacksVal;
@@ -179,12 +226,6 @@ export class BuffOverTime extends Buff {
     }
 }
 class BuffOverTimeApplication extends BuffApplication {
-    constructor(player, buff, applyTime) {
-        super(buff, applyTime);
-        this.buff = buff;
-        this.player = player;
-        this.refresh(applyTime);
-    }
     refresh(time) {
         super.refresh(time);
         this.nextUpdate = time + this.buff.updateInterval;

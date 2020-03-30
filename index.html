@@ -37,16 +37,30 @@
                 <input type="number" id="haste" name="haste" min="1" value="1">
             </div>
             <div id="ai_settings">
+                <label for="userecklessness">Use recklessness</label>
+                <input type="checkbox" id="userecklessness" name="userecklessness">
                 <label for="heroicstrikerr">Heroic Strike Rage Req.</label>
-                <input type="number" id="heroicstrikerr" name="heroicstrikerr" min="0" max="100" value="50">
+                <input type="number" id="heroicstrikerr" name="heroicstrikerr" min="0" max="100" value="30">
                 <label for="hamstringrr">Hamstring Rage Req.</label>
-                <input type="number" id="hamstringrr" name="hamstringrr" min="0" max="100" value="30">
-                <label for="bloodthirstexecrl">Bloodthirst in exec if rage less</label>
-                <input type="number" id="bloodthirstexecrl" name="bloodthirstexecrl" min="0" max="100" value="70">
+                <input type="number" id="hamstringrr" name="hamstringrr" min="0" max="101" value="20">
+                <label for="bloodthirstexecmin">Bloodthirst in exec if rage greater than</label>
+                <input type="number" id="bloodthirstexecmin" name="bloodthirstexecmin" min="0" max="100" value="30">
+                <label for="bloodthirstexecmax">Bloodthirst in exec if rage less than</label>
+                <input type="number" id="bloodthirstexecmax" name="bloodthirstexecmax" min="0" max="100" value="50">
+                <label for="executemightyrage">Wait till after first execute to use mighty rage</label>
+                <input type="checkbox" id="executemightyrage" name="executemightyrage">
+                <label for="mightyragerr">Mighty rage if rage less than</label>
+                <input type="number" id="mightyragerr" name="mightyragerr" min="0" max="100" value="30">
+                <label for="heroicstrikeinexecute">Use Heroic Strike during execute phase</label>
+                <input type="checkbox" id="heroicstrikeinexecute" name="heroicstrikeinexecute">
+                <label for="useheroicstriker9">Use Heroic Strike R9 (AQ)</label>
+                <input type="checkbox" id="useheroicstriker9" name="useheroicstriker9">
             </div>
             <div id="fight_settings">
                 <label for="fightlength">Avg. Fight Length (seconds)</label>
                 <input type="number" id="fightlength" name="fightlength" min="0" value="60">
+                <label for="vael">Vael</label>
+                <input type="checkbox" id="vael" name="vael">
             </div>
             <label for="realtime">Real-time</label>
             <input type="checkbox" id="realtime" name="realtime">

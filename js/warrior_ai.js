@@ -1,5 +1,5 @@
-import { SpellBuff } from "./spell";
-export function generateChooseAction(heroicStrikeRageReq, hamstringRageReq, bloodthirstExecRageLimit) {
+import { SpellBuff } from "./spell.js";
+export function generateChooseAction(useRecklessness, useHeroicStrikeR9, heroicStrikeRageReq, hamstringRageReq, bloodthirstExecRageMin, bloodthirstExecRageMax, mightyRageExecute, mightyRageRageReq, heroicStrikeInExecute) {
     return (player, time, fightLength, executePhase) => {
         const warrior = player;
         const timeRemainingSeconds = (fightLength - time) / 1000;
@@ -20,16 +20,27 @@ export function generateChooseAction(heroicStrikeRageReq, hamstringRageReq, bloo
             warrior.bloodRage.cast(time);
         }
         if (warrior.nextGCDTime <= time) {
-            if (warrior.deathWish.canCast(time) &&
+            if (useRecklessness && warrior.recklessness.canCast(time) && timeRemainingSeconds <= 15) {
+                warrior.recklessness.cast(time);
+            }
+            else if (warrior.deathWish.canCast(time) &&
                 (timeRemainingSeconds <= 30
                     || (timeRemainingSeconds - warrior.deathWish.spell.cooldown) > 30)) {
                 warrior.deathWish.cast(time);
             }
-            else if (executePhase && warrior.bloodthirst.canCast(time) && warrior.rage < bloodthirstExecRageLimit) {
+            else if (executePhase && warrior.bloodthirst.canCast(time) && warrior.rage >= bloodthirstExecRageMin && warrior.rage <= bloodthirstExecRageMax) {
                 warrior.bloodthirst.cast(time);
             }
             else if (executePhase && warrior.execute.canCast(time)) {
                 warrior.execute.cast(time);
+                if (mightyRageExecute && warrior.mightyRagePotion.canCast(time + 500)) {
+                    warrior.futureEvents.push({
+                        time: time + 500,
+                        callback: () => {
+                            warrior.mightyRagePotion.cast(time + 500);
+                        }
+                    });
+                }
             }
             else if (warrior.bloodthirst.canCast(time)) {
                 warrior.bloodthirst.cast(time);
@@ -39,7 +50,7 @@ export function generateChooseAction(heroicStrikeRageReq, hamstringRageReq, bloo
                     waitingForTime = Math.min(waitingForTime, warrior.bloodthirst.cooldown);
                 }
             }
-            else if (warrior.whirlwind.canCast(time)) {
+            else if (!executePhase && warrior.whirlwind.canCast(time)) {
                 warrior.whirlwind.cast(time);
             }
             else if (warrior.whirlwind.timeRemaining(time) < 1.5 + (warrior.latency / 1000)) {
@@ -47,12 +58,16 @@ export function generateChooseAction(heroicStrikeRageReq, hamstringRageReq, bloo
                     waitingForTime = Math.min(waitingForTime, warrior.whirlwind.cooldown);
                 }
             }
-            else if (warrior.rage >= hamstringRageReq && warrior.hamstring.canCast(time)) {
+            else if (!executePhase && warrior.rage >= hamstringRageReq && warrior.hamstring.canCast(time)) {
                 warrior.hamstring.cast(time);
             }
         }
-        if (!executePhase && warrior.rage >= heroicStrikeRageReq && !warrior.queuedSpell) {
-            warrior.queuedSpell = warrior.heroicStrike;
+        if (!mightyRageExecute && warrior.mightyRagePotion.canCast(time) && timeRemainingSeconds <= 20 && warrior.rage <= mightyRageRageReq) {
+            warrior.mightyRagePotion.cast(time);
+        }
+        const heroicStrikeSpell = useHeroicStrikeR9 ? warrior.heroicStrikeR9 : warrior.heroicStrikeR8;
+        if (warrior.rage >= heroicStrikeSpell.spell.cost && !warrior.queuedSpell && ((heroicStrikeInExecute && executePhase) || warrior.rage >= heroicStrikeRageReq)) {
+            warrior.queuedSpell = heroicStrikeSpell;
             if (warrior.log)
                 warrior.log(time, 'queueing heroic strike');
         }

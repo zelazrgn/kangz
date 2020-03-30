@@ -75,14 +75,16 @@ export class LearnedSpell {
     }
 }
 export class ModifyPowerEffect extends Effect {
-    constructor(amount) {
+    constructor(base, randomAmount) {
         super(EffectType.NONE);
-        this.amount = amount;
+        this.base = base;
+        this.randomAmount = randomAmount || 0;
     }
     run(player, time) {
-        player.power += this.amount;
+        const amount = this.base + Math.round(this.randomAmount * Math.random());
+        player.power += amount;
         if (player.log)
-            player.log(time, `You gain ${this.amount} rage from ${this.parent.name}`);
+            player.log(time, `You gain ${amount} rage from ${this.parent.name}`);
     }
 }
 export class SwingEffect extends Effect {
@@ -145,9 +147,15 @@ export class ExtraAttackEffect extends Effect {
         if (player.extraAttackCount) {
             return;
         }
-        player.extraAttackCount += this.count;
-        if (player.log)
-            player.log(time, `Gained ${this.count} extra attacks from ${this.parent.name}`);
+        const nextBatch = time;
+        player.futureEvents.push({
+            time: nextBatch,
+            callback: (player) => {
+                player.extraAttackCount += this.count;
+                if (player.log)
+                    player.log(nextBatch, `Gained ${this.count} extra attacks from ${this.parent.name}`);
+            }
+        });
     }
 }
 export class ExtraAttack extends Spell {

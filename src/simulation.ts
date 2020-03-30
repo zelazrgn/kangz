@@ -1,7 +1,6 @@
 import { StatValues, Stats } from "./stats.js";
 import { ItemDescription, ItemSlot } from "./item.js";
-import { Buff } from "./buff.js";
-import { LogFunction, Player, Race, DamageLog } from "./player.js";
+import { LogFunction, Player, Race, DamageLog, HitOutcomeStats } from "./player.js";
 import { setupPlayer } from "./simulation_utils.js";
 import { EnchantDescription } from "./data/enchants.js";
 import { BuffDescription } from "./data/spells.js";
@@ -12,18 +11,22 @@ export type ItemWithSlot = [ItemDescription, ItemSlot];
 // e.g. ChooseAction shouldn't cast spells at a current time
 export type ChooseAction = (player: Player, time: number, fightLength: number, canExecute: boolean) => number;
 
-export const EXECUTE_PHASE_RATIO = 0.15; // last 15% of the time is execute phase
-
 class Fight {
     player: Player;
     chooseAction: ChooseAction;
     fightLength: number;
+    beginExecuteTime: number;
     duration = 0;
 
-    constructor(race: Race, stats: StatValues, equipment: Map<ItemSlot, ItemDescription>, enchants: Map<ItemSlot, EnchantDescription>, temporaryEnchants: Map<ItemSlot, EnchantDescription>, buffs: BuffDescription[], chooseAction: ChooseAction, fightLength = 60, log?: LogFunction) {
-        this.player = setupPlayer(race, stats, equipment, enchants, temporaryEnchants, buffs, log);
+    constructor(race: Race, stats: StatValues, equipment: Map<ItemSlot, ItemDescription>, enchants: Map<ItemSlot, EnchantDescription>, temporaryEnchants: Map<ItemSlot, EnchantDescription>, buffs: BuffDescription[], chooseAction: ChooseAction, fightLength = 60, vael = false, log?: LogFunction) {
+        this.player = setupPlayer(race, stats, equipment, enchants, temporaryEnchants, buffs, vael, log);
         this.chooseAction = chooseAction;
         this.fightLength = (fightLength + Math.random() * 4 - 2) * 1000;
+        
+        const EXECUTE_PHASE_RATIO = 0.15; // last 15% of the time is execute phase
+        const VAEL_EXECUTE_PHASE_RATIO = 0.5; // last 50% of the time is execute phase
+
+        this.beginExecuteTime = this.fightLength * (1 - (vael ? VAEL_EXECUTE_PHASE_RATIO : EXECUTE_PHASE_RATIO));
     }
 
     run(): Promise<FightResult> {
@@ -32,10 +35,15 @@ class Fight {
                 this.update();
             }
 
+            this.player.buffManager.removeAllBuffs(this.fightLength);
+
             f({
                 damageLog: this.player.damageLog,
                 fightLength: this.fightLength,
-                powerLost: this.player.powerLost
+                beginExecuteTime: this.beginExecuteTime,
+                powerLost: this.player.powerLost,
+                buffUptime: this.player.buffManager.buffUptimeMap,
+                hitStats: this.player.hitStats,
             });
         });
     }
@@ -45,8 +53,17 @@ class Fight {
     cancel() {}
 
     protected update() {
-        const beginExecuteTime = this.fightLength * (1 - EXECUTE_PHASE_RATIO);
-        const isExecutePhase = this.duration >= beginExecuteTime;
+        const futureEvents = this.player.futureEvents;
+        this.player.futureEvents = [];
+        for (let futureEvent of futureEvents) {
+            if (futureEvent.time === this.duration) {
+                futureEvent.callback(this.player);
+            } else {
+                this.player.futureEvents.push(futureEvent);
+            }
+        }
+
+        const isExecutePhase = this.duration >= this.beginExecuteTime;
 
         this.player.buffManager.update(this.duration); // need to call this if the duration changed because of buffs that change over time like jom gabber
 
@@ -65,7 +82,7 @@ class Fight {
         // temporary hack
         if (this.player.extraAttackCount) {
             // don't increment duration (TODO: but I really should because the server doesn't loop instantly)
-        } else if (this.player.nextGCDTime > this.duration) {
+        } else if (this.player.nextGCDTime > this.duration) { // if you have no action this gcd, can't keep looping at the same time
             this.duration = Math.min(this.player.nextGCDTime, nextSwingTime, this.player.buffManager.nextOverTimeUpdate);
         } else {
             this.duration = Math.min(nextSwingTime, this.player.buffManager.nextOverTimeUpdate);
@@ -75,8 +92,12 @@ class Fight {
             this.duration = waitingForTime;
         }
 
-        if (!isExecutePhase && beginExecuteTime < this.duration) { // not execute at start of update
-            this.duration = beginExecuteTime;
+        if (!isExecutePhase && this.beginExecuteTime < this.duration) { // not execute at start of update
+            this.duration = this.beginExecuteTime;
+        }
+
+        for (let futureEvent of this.player.futureEvents) {
+            this.duration = Math.min(this.duration, futureEvent.time);
         }
     }
 }
@@ -94,15 +115,18 @@ class RealtimeFight extends Fight {
                 if (this.duration <= this.fightLength) {
                     if (!this.paused) {
                         this.update();
-                        overrideDuration += MS_PER_UPDATE;
-                        this.duration = overrideDuration;
+                        // overrideDuration += MS_PER_UPDATE;
+                        // this.duration = overrideDuration;
                     }
                     setTimeout(loop, MS_PER_UPDATE);
                 } else {
                     f({
                         damageLog: this.player.damageLog,
                         fightLength: this.fightLength,
-                        powerLost: this.player.powerLost
+                        beginExecuteTime: this.beginExecuteTime,
+                        powerLost: this.player.powerLost,
+                        buffUptime: new Map(),
+                        hitStats: this.player.hitStats,
                     });
                 }
             }
@@ -115,7 +139,7 @@ class RealtimeFight extends Fight {
     }
 }
 
-export type FightResult = { damageLog: DamageLog, fightLength: number, powerLost: number};
+export type FightResult = { damageLog: DamageLog, fightLength: number, beginExecuteTime: number, powerLost: number, buffUptime: Map<string, number>, hitStats: Map<string, HitOutcomeStats>};
 
 export type SimulationSummary = {
     normalDamage: number,
@@ -124,6 +148,8 @@ export type SimulationSummary = {
     execDuration: number,
     powerLost: number,
     fights: number,
+    buffUptime: Map<string, number>,
+    hitStats: Map<string, HitOutcomeStats>
 };
 
 export type StatusHandler = (status: SimulationSummary) => void;
@@ -138,6 +164,7 @@ export class Simulation {
     chooseAction: ChooseAction;
     protected fightLength: number;
     protected realtime: boolean;
+    protected vael: boolean;
     log?: LogFunction
 
     protected requestStop = false;
@@ -147,9 +174,9 @@ export class Simulation {
 
     currentFight?: Fight;
 
-    protected cachedSummmary: SimulationSummary = { normalDamage: 0, execDamage: 0, normalDuration: 0, execDuration: 0, powerLost: 0, fights: 0 };
+    protected cachedSummmary: SimulationSummary = { normalDamage: 0, execDamage: 0, normalDuration: 0, execDuration: 0, powerLost: 0, fights: 0, buffUptime: new Map(), hitStats: new Map() };
 
-    constructor(race: Race, stats: StatValues, equipment: Map<ItemSlot, ItemDescription>, enchants: Map<ItemSlot, EnchantDescription>, temporaryEnchants: Map<ItemSlot, EnchantDescription>, buffs: BuffDescription[], chooseAction: ChooseAction, fightLength = 60, realtime = false, log?: LogFunction) {
+    constructor(race: Race, stats: StatValues, equipment: Map<ItemSlot, ItemDescription>, enchants: Map<ItemSlot, EnchantDescription>, temporaryEnchants: Map<ItemSlot, EnchantDescription>, buffs: BuffDescription[], chooseAction: ChooseAction, fightLength = 60, realtime = false, vael = false, log?: LogFunction) {
         this.race = race;
         this.stats = stats;
         this.equipment = equipment;
@@ -159,6 +186,7 @@ export class Simulation {
         this.chooseAction = chooseAction;
         this.fightLength = fightLength;
         this.realtime = realtime;
+        this.vael = vael;
         this.log = log;
     }
 
@@ -168,19 +196,34 @@ export class Simulation {
 
     get status(): SimulationSummary {
         for (let fightResult of this.fightResults) {
-            const beginExecuteTime = fightResult.fightLength * (1 - EXECUTE_PHASE_RATIO);
-
             for (let [time, damage] of fightResult.damageLog) {
-                if (time >= beginExecuteTime) {
+                if (time >= fightResult.beginExecuteTime) {
                     this.cachedSummmary.execDamage += damage;
                 } else {
                     this.cachedSummmary.normalDamage += damage;
                 }
             }
 
-            this.cachedSummmary.normalDuration += beginExecuteTime;
-            this.cachedSummmary.execDuration += fightResult.fightLength - beginExecuteTime;
+            this.cachedSummmary.normalDuration += fightResult.beginExecuteTime;
+            this.cachedSummmary.execDuration += fightResult.fightLength - fightResult.beginExecuteTime;
             this.cachedSummmary.powerLost += fightResult.powerLost;
+
+            for (let [buff, duration] of fightResult.buffUptime) {
+                this.cachedSummmary.buffUptime.set(buff, (this.cachedSummmary.buffUptime.get(buff) || 0) + duration);
+            }
+
+            for (let [ability, hitOutComes] of fightResult.hitStats) {
+                const currAbilityStats = this.cachedSummmary.hitStats.get(ability);
+
+                if (currAbilityStats) {
+                    const NUM_HIT_TYPES = 10;
+                    for (let i = 0; i < NUM_HIT_TYPES; i++) {
+                        (currAbilityStats as any)[i] += (hitOutComes as any)[i]; // ugly
+                    }
+                } else {
+                    this.cachedSummmary.hitStats.set(ability, hitOutComes);
+                }
+            }
 
             this.cachedSummmary.fights++;
         }
@@ -195,18 +238,16 @@ export class Simulation {
         let fights = this.cachedSummmary.fights;
 
         if (this.realtime && this.currentFight) {
-            const beginExecuteTime = this.currentFight.fightLength * (1 - EXECUTE_PHASE_RATIO);
-
             for (let [time, damage] of this.currentFight.player.damageLog) {
-                if (time >= beginExecuteTime) {
+                if (time >= this.currentFight.beginExecuteTime) {
                     execDamage += damage;
                 } else {
                     normalDamage += damage;
                 }
             }
 
-            normalDuration += Math.min(beginExecuteTime, this.currentFight.duration);
-            execDuration += Math.max(0, this.currentFight.duration - beginExecuteTime);
+            normalDuration += Math.min(this.currentFight.beginExecuteTime, this.currentFight.duration);
+            execDuration += Math.max(0, this.currentFight.duration - this.currentFight.beginExecuteTime);
             powerLost += this.currentFight.player.powerLost;
             fights++;
         }
@@ -218,6 +259,8 @@ export class Simulation {
             execDuration: execDuration,
             powerLost: powerLost,
             fights: fights,
+            buffUptime: this.cachedSummmary.buffUptime,
+            hitStats: this.cachedSummmary.hitStats,
         }
     }
 
@@ -238,7 +281,7 @@ export class Simulation {
                     return;
                 }
 
-                this.currentFight = new fightClass(this.race, this.stats, this.equipment, this.enchants, this.temporaryEnchants, this.buffs, this.chooseAction, this.fightLength, this.realtime ? this.log : undefined);
+                this.currentFight = new fightClass(this.race, this.stats, this.equipment, this.enchants, this.temporaryEnchants, this.buffs, this.chooseAction, this.fightLength, this.vael, this.realtime ? this.log : undefined);
                 this.currentFight.run().then((res) => {
                     this.fightResults.push(res);
                     count++;

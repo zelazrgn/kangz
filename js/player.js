@@ -9,12 +9,20 @@ export var Race;
 (function (Race) {
     Race[Race["HUMAN"] = 0] = "HUMAN";
     Race[Race["ORC"] = 1] = "ORC";
+    Race[Race["GNOME"] = 2] = "GNOME";
+    Race[Race["TROLL"] = 3] = "TROLL";
 })(Race || (Race = {}));
 export var Faction;
 (function (Faction) {
     Faction[Faction["ALLIANCE"] = 0] = "ALLIANCE";
     Faction[Faction["HORDE"] = 1] = "HORDE";
 })(Faction || (Faction = {}));
+export const FACTION_OF_RACE = {
+    [Race.HUMAN]: Faction.ALLIANCE,
+    [Race.GNOME]: Faction.ALLIANCE,
+    [Race.ORC]: Faction.HORDE,
+    [Race.TROLL]: Faction.HORDE,
+};
 export var MeleeHitOutcome;
 (function (MeleeHitOutcome) {
     MeleeHitOutcome[MeleeHitOutcome["MELEE_HIT_EVADE"] = 0] = "MELEE_HIT_EVADE";
@@ -40,7 +48,6 @@ export const hitOutcomeString = {
     [MeleeHitOutcome.MELEE_HIT_NORMAL]: 'hits',
     [MeleeHitOutcome.MELEE_HIT_BLOCK_CRIT]: 'is block crit',
 };
-const skillDiffToReduction = [1, 0.9926, 0.9840, 0.9742, 0.9629, 0.9500, 0.9351, 0.9180, 0.8984, 0.8759, 0.8500, 0.8203, 0.7860, 0.7469, 0.7018];
 export class Player extends Unit {
     constructor(stats, log) {
         super(60, 0);
@@ -53,6 +60,8 @@ export class Player extends Unit {
         this.queuedSpell = undefined;
         this.latency = 50;
         this.powerLost = 0;
+        this.futureEvents = [];
+        this.hitStats = new Map();
         this.buffManager = new BuffManager(this, new Stats(stats));
         this.log = log;
     }
@@ -143,48 +152,45 @@ export class Player extends Unit {
                 }
         }
     }
+    calculateCritSuppression(victim) {
+        return (victim.defenseSkill - this.maxSkillForLevel) * 0.2 + (victim.level === 63 ? 1.8 : 0);
+    }
     calculateCritChance(victim, is_mh, effect) {
         if (LH_CORE_BUG && effect && effect.type == EffectType.PHYSICAL) {
             effect = undefined;
         }
         let crit = this.buffManager.stats.crit;
         crit += this.buffManager.stats.agi * this.buffManager.stats.statMult / 20;
-        if (!effect || effect.type == EffectType.PHYSICAL_WEAPON) {
-            const weapon = is_mh ? this.mh : this.oh;
+        const weapons = [];
+        if (this.mh) {
+            weapons.push(this.mh);
+        }
+        if (this.oh) {
+            weapons.push(this.oh);
+        }
+        for (let weapon of weapons) {
             if (weapon.temporaryEnchant && weapon.temporaryEnchant.stats && weapon.temporaryEnchant.stats.crit) {
                 crit += weapon.temporaryEnchant.stats.crit;
             }
         }
-        const skillBonus = 0.04 * (this.calculateWeaponSkillValue(is_mh, effect) - victim.maxSkillForLevel);
-        crit += skillBonus;
+        crit -= this.calculateCritSuppression(victim);
         return crit;
     }
     calculateMissChance(victim, is_mh, effect) {
         let res = 5;
+        const skillDiff = victim.defenseSkill - this.calculateWeaponSkillValue(is_mh, effect);
+        res += skillDiff * (skillDiff > 10 ? 0.2 : 0.1);
+        if (this.oh && !effect && !this.queuedSpell) {
+            res = res * 0.8 + 20;
+        }
         res -= this.buffManager.stats.hit;
-        if (this.oh && !effect) {
-            res += 19;
-        }
-        const skillDiff = this.calculateWeaponSkillValue(is_mh, effect) - victim.defenseSkill;
-        if (skillDiff < -10) {
-            res -= (skillDiff + 10) * 0.4 - 2;
-        }
-        else {
-            res -= skillDiff * 0.1;
-        }
         return clamp(res, 0, 60);
     }
     calculateGlancingReduction(victim, is_mh) {
         const skillDiff = victim.defenseSkill - this.calculateWeaponSkillValue(is_mh);
-        if (skillDiff >= 15) {
-            return 0.65;
-        }
-        else if (skillDiff < 0) {
-            return 1;
-        }
-        else {
-            return skillDiffToReduction[skillDiff];
-        }
+        const lowEnd = Math.min(1.3 - 0.05 * skillDiff, 0.91);
+        const highEnd = clamp(1.2 - 0.03 * skillDiff, 0.2, 0.99);
+        return (lowEnd + highEnd) / 2;
     }
     get ap() {
         return 0;
@@ -194,33 +200,32 @@ export class Player extends Unit {
         const ap_bonus = this.ap / 14 * (normalized ? normalizedWeaponSpeed[weapon.weapon.type] : weapon.weapon.speed);
         const ohPenalty = is_mh ? 1 : 0.625;
         return [
-            (weapon.min + ap_bonus) * ohPenalty,
-            (weapon.max + ap_bonus) * ohPenalty
+            (weapon.min + ap_bonus + this.buffManager.stats.plusDamage) * ohPenalty,
+            (weapon.max + ap_bonus + this.buffManager.stats.plusDamage) * ohPenalty
         ];
     }
     calculateSwingRawDamage(is_mh, normalized = false) {
         return frand(...this.calculateSwingMinMaxDamage(is_mh, normalized));
     }
     critCap() {
-        const skillBonus = 4 * (this.calculateWeaponSkillValue(true) - this.target.maxSkillForLevel);
+        const skillBonus = 10 * (this.calculateWeaponSkillValue(true) - this.target.maxSkillForLevel);
         const miss_chance = Math.round(this.calculateMissChance(this.target, true) * 100);
         const dodge_chance = Math.round(this.target.dodgeChance * 100) - skillBonus;
         const glance_chance = clamp((10 + (this.target.defenseSkill - 300) * 2) * 100, 0, 4000);
-        return (10000 - (miss_chance + dodge_chance + glance_chance)) / 100;
+        const crit_suppression = Math.round(100 * this.calculateCritSuppression(this.target));
+        return (10000 - (miss_chance + dodge_chance + glance_chance - crit_suppression)) / 100;
     }
     rollMeleeHitOutcome(victim, is_mh, effect) {
         const roll = urand(0, 10000);
         let sum = 0;
         let tmp = 0;
         const miss_chance = Math.round(this.calculateMissChance(victim, is_mh, effect) * 100);
-        const dodge_chance = Math.round(victim.dodgeChance * 100);
-        const crit_chance = Math.round(this.calculateCritChance(victim, is_mh, effect) * 100);
-        const skillBonus = 4 * (this.calculateWeaponSkillValue(is_mh, effect) - victim.maxSkillForLevel);
         tmp = miss_chance;
         if (tmp > 0 && roll < (sum += tmp)) {
             return MeleeHitOutcome.MELEE_HIT_MISS;
         }
-        tmp = dodge_chance - skillBonus;
+        const dodge_chance = Math.round(victim.dodgeChance * 100) - 10 * (this.calculateWeaponSkillValue(is_mh, effect) - victim.maxSkillForLevel);
+        tmp = dodge_chance;
         if (tmp > 0 && roll < (sum += tmp)) {
             return MeleeHitOutcome.MELEE_HIT_DODGE;
         }
@@ -231,6 +236,7 @@ export class Player extends Unit {
                 return MeleeHitOutcome.MELEE_HIT_GLANCING;
             }
         }
+        const crit_chance = Math.round(this.calculateCritChance(victim, is_mh, effect) * 100);
         tmp = crit_chance;
         if (tmp > 0 && roll < (sum += tmp)) {
             return MeleeHitOutcome.MELEE_HIT_CRIT;
@@ -299,9 +305,30 @@ export class Player extends Unit {
             }
             this.log(time, hitStr);
         }
+        const damageName = effect ? effect.parent.name : (is_mh ? "mh" : "oh");
+        if (damageName === "mh" && effect) {
+            console.log("fuck");
+        }
+        let prevStats = this.hitStats.get(damageName);
+        if (!prevStats) {
+            prevStats = {
+                [MeleeHitOutcome.MELEE_HIT_EVADE]: 0,
+                [MeleeHitOutcome.MELEE_HIT_MISS]: 0,
+                [MeleeHitOutcome.MELEE_HIT_DODGE]: 0,
+                [MeleeHitOutcome.MELEE_HIT_BLOCK]: 0,
+                [MeleeHitOutcome.MELEE_HIT_PARRY]: 0,
+                [MeleeHitOutcome.MELEE_HIT_GLANCING]: 0,
+                [MeleeHitOutcome.MELEE_HIT_CRIT]: 0,
+                [MeleeHitOutcome.MELEE_HIT_CRUSHING]: 0,
+                [MeleeHitOutcome.MELEE_HIT_NORMAL]: 0,
+                [MeleeHitOutcome.MELEE_HIT_BLOCK_CRIT]: 0,
+            };
+            this.hitStats.set(damageName, prevStats);
+        }
+        prevStats[hitOutcome]++;
         if (effect instanceof SpellDamageEffect) {
             if (effect.callback) {
-                effect.callback(this, hitOutcome);
+                effect.callback(this, hitOutcome, time);
             }
         }
         if (!effect || effect.canProc) {
@@ -317,22 +344,19 @@ export class Player extends Unit {
         }
     }
     swingWeapon(time, target, is_mh) {
-        if (!this.doingExtraAttacks && is_mh && this.queuedSpell && this.queuedSpell.canCast(time)) {
+        if (is_mh && this.queuedSpell && this.queuedSpell.canCast(time)) {
             this.queuedSpell.cast(time);
             this.queuedSpell = undefined;
         }
         else {
+            if (is_mh) {
+                this.queuedSpell = undefined;
+            }
             const rawDamage = this.calculateSwingRawDamage(is_mh);
             this.dealMeleeDamage(time, rawDamage, target, is_mh);
         }
         const [thisWeapon, otherWeapon] = is_mh ? [this.mh, this.oh] : [this.oh, this.mh];
         thisWeapon.nextSwingTime = time + thisWeapon.weapon.speed / this.buffManager.stats.haste * 1000;
-        if (otherWeapon && otherWeapon.nextSwingTime < time + 200) {
-            if (this.log) {
-                this.log(time, `delaying ${is_mh ? 'OH' : 'MH'} swing ${time + 200 - otherWeapon.nextSwingTime}`);
-            }
-            otherWeapon.nextSwingTime = time + 200;
-        }
     }
     updateAttackingState(time) {
         if (this.target) {
@@ -347,7 +371,7 @@ export class Player extends Unit {
             if (time >= this.mh.nextSwingTime) {
                 this.swingWeapon(time, this.target, true);
             }
-            else if (this.oh && time >= this.oh.nextSwingTime) {
+            if (this.oh && time >= this.oh.nextSwingTime) {
                 this.swingWeapon(time, this.target, false);
             }
         }

@@ -1,3 +1,4 @@
+import { Buff } from "../buff.js";
 import { Faction } from "../player.js";
 export const buffs = [
     {
@@ -128,6 +129,16 @@ export const buffs = [
         stats: {
             haste: 1.15
         }
-    },
+    }
 ];
+export function getBuffFromDescription(desc) {
+    return new Buff(desc.name, desc.duration, desc.stats);
+}
+export function getBuff(name) {
+    for (let buff of buffs) {
+        if (buff.name === name) {
+            return getBuffFromDescription(buff);
+        }
+    }
+}
 //# sourceMappingURL=spells.js.map

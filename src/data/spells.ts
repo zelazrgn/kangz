@@ -140,5 +140,17 @@ export const buffs: BuffDescription[] = [
         stats: {
             haste: 1.15
         }
-    },
+    }
 ];
+
+export function getBuffFromDescription(desc: BuffDescription) {
+    return new Buff(desc.name, desc.duration, desc.stats);
+}
+
+export function getBuff(name: string) {
+    for (let buff of buffs) {
+        if (buff.name === name) {
+            return getBuffFromDescription(buff);
+        }
+    }
+}

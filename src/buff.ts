@@ -1,12 +1,15 @@
 import { Stats, StatValues } from "./stats.js";
 import { Player } from "./player.js";
 import { Proc, Effect } from "./spell.js";
+import { WeaponEquiped } from "./item.js";
 
 export class BuffManager {
     player: Player;
 
     private buffList: BuffApplication[] = [];
     private buffOverTimeList: BuffOverTimeApplication[] = [];
+
+    public buffUptimeMap = new Map<string, number>();
 
     baseStats: Stats;
     stats: Stats;
@@ -80,7 +83,7 @@ export class BuffManager {
         if (buff instanceof BuffOverTime) {
             this.buffOverTimeList.push(new BuffOverTimeApplication(this.player, buff, applyTime));
         } else {
-            this.buffList.push(new BuffApplication(buff, applyTime));
+            this.buffList.push(new BuffApplication(this.player, buff, applyTime));
         }
         buff.add(applyTime, this.player);
     }
@@ -97,7 +100,7 @@ export class BuffManager {
                 }
 
                 if (this.player.log) this.player.log(time, `${buff.name} lost`);
-                buffapp.buff.remove(time, this.player);
+                buffapp.remove(time);
                 return false;
             }
             return true;
@@ -114,7 +117,7 @@ export class BuffManager {
                 }
 
                 if (this.player.log) this.player.log(time, `${buff.name} lost`);
-                buffapp.buff.remove(time, this.player);
+                buffapp.remove(time);
                 return false;
             }
             return true;
@@ -122,11 +125,11 @@ export class BuffManager {
     }
 
     removeExpiredBuffs(time: number) {
-        const removedBuffs: Buff[] = [];
+        const removedBuffs: BuffApplication[] = [];
         
         this.buffList = this.buffList.filter((buffapp) => {
             if (buffapp.expirationTime <= time) {
-                removedBuffs.push(buffapp.buff);
+                removedBuffs.push(buffapp);
                 return false;
             }
             return true;
@@ -134,16 +137,56 @@ export class BuffManager {
 
         this.buffOverTimeList = this.buffOverTimeList.filter((buffapp) => {
             if (buffapp.expirationTime <= time) {
-                removedBuffs.push(buffapp.buff);
+                removedBuffs.push(buffapp);
                 return false;
             }
             return true;
         });
 
-        for (let buff of removedBuffs) {
-            buff.remove(time, this.player);
-            if (this.player.log) this.player.log(time, `${buff.name} expired`);
+        for (let buffapp of removedBuffs) {
+            buffapp.remove(time);
+            if (this.player.log) this.player.log(time, `${buffapp.buff.name} expired`);
         }
+    }
+
+    // for calculating buff uptime
+    removeAllBuffs(time: number) {
+        const removedBuffs: BuffApplication[] = [];
+        
+        this.buffList = this.buffList.filter((buffapp) => {
+            removedBuffs.push(buffapp);
+            return false;
+        });
+
+        this.buffOverTimeList = this.buffOverTimeList.filter((buffapp) => {
+            removedBuffs.push(buffapp);
+            return false;
+        });
+
+        for (let buffapp of removedBuffs) {
+            buffapp.remove(time);
+        }
+    }
+}
+
+function updateSwingTimers(time: number, player: Player, hasteScale: number) {
+    const currentHaste = player.buffManager.stats.haste;
+    const newHaste = currentHaste * hasteScale;
+
+    const weapons: WeaponEquiped[] = [];
+    if (player.mh) {
+        weapons.push(player.mh);
+    }
+    if (player.oh) {
+        weapons.push(player.oh);
+    }
+
+    for (let weapon of weapons) {
+        const currentSwingTime = weapon.weapon.speed / currentHaste * 1000;
+        const currentSwingTimeRemaining = weapon.nextSwingTime - time;
+        const currentSwingProgressRemaining = currentSwingTimeRemaining / currentSwingTime;
+        // 0.2s and 2s swing time = 0.1%
+        weapon.nextSwingTime = time + currentSwingProgressRemaining * weapon.weapon.speed / newHaste * 1000;
     }
 }
 
@@ -175,9 +218,17 @@ export class Buff {
         }
     }
 
-    add(time: number, player: Player) {}
+    add(time: number, player: Player) {
+        if (this.stats && this.stats.haste) {
+            updateSwingTimers(time, player, this.stats.haste);
+        }
+    }
 
     remove(time: number, player: Player) {
+        if (this.stats && this.stats.haste) {
+            updateSwingTimers(time, player, 1/this.stats.haste);
+        }
+
         if (this.child) {
             player.buffManager.remove(this.child, time, true);
         }
@@ -185,13 +236,16 @@ export class Buff {
 }
 
 class BuffApplication {
+    player: Player;
     buff: Buff;
+    applyTime: number;
     expirationTime!: number;
-
     stacksVal!: number;
 
-    constructor(buff: Buff, applyTime: number) {
+    constructor(player: Player, buff: Buff, applyTime: number) {
+        this.player = player;
         this.buff = buff;
+        this.applyTime = applyTime;
         this.refresh(applyTime);
     }
 
@@ -203,6 +257,13 @@ class BuffApplication {
         if (this.buff.duration > 60) {
             this.expirationTime = Number.MAX_SAFE_INTEGER;
         }
+    }
+
+    remove(time: number) {
+        this.buff.remove(time, this.player);
+        const previousUptime = this.player.buffManager.buffUptimeMap.get(this.buff.name) || 0;
+        const currentUptime = time - this.applyTime;
+        this.player.buffManager.buffUptimeMap.set(this.buff.name, previousUptime + currentUptime);
     }
 
     get stacks() {
@@ -232,16 +293,15 @@ export class BuffOverTime extends Buff {
 }
 
 class BuffOverTimeApplication extends BuffApplication {
-    buff: BuffOverTime;
+    buff!: BuffOverTime;
     nextUpdate!: number;
-    player: Player;
 
-    constructor(player: Player, buff: BuffOverTime, applyTime: number) {
-        super(buff, applyTime);
-        this.buff = buff;
-        this.player = player;
-        this.refresh(applyTime);
-    }
+    // constructor(player: Player, buff: BuffOverTime, applyTime: number) {
+    //     super(player, buff, applyTime);
+    //     // this.buff = buff; // needed to fix type information
+    //     // this.player = player;
+    //     // this.refresh(applyTime); called in BuffApplication
+    // }
 
     refresh(time: number) {
         super.refresh(time);

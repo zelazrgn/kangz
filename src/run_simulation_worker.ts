@@ -27,8 +27,8 @@ mainThreadInterface.addEventListener('simulate', (data: any) => {
         lookupEnchants(simdesc.enchants),
         lookupTemporaryEnchants(simdesc.temporaryEnchants),
         lookupBuffs(simdesc.buffs),
-        generateChooseAction(simdesc.heroicStrikeRageReq, simdesc.hamstringRageReq, simdesc.bloodthirstExecRageLimit),
-        simdesc.fightLength, simdesc.realtime, logFunction);
+        generateChooseAction(simdesc.useRecklessness, simdesc.useHeroicStrikeR9, simdesc.heroicStrikeRageReq, simdesc.hamstringRageReq, simdesc.bloodthirstExecRageMin, simdesc.bloodthirstExecRageMax, simdesc.executeMightyRage, simdesc.mightyRageRageReq, simdesc.heroicStrikeInExecute),
+        simdesc.fightLength, simdesc.realtime, simdesc.vael, logFunction);
 
     currentSim.start();
 

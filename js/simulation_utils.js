@@ -1,19 +1,27 @@
-import { Buff } from "./buff.js";
+import { Buff, BuffOverTime } from "./buff.js";
 import { Warrior } from "./warrior.js";
 import { Unit } from "./unit.js";
 import { temporaryEnchants, enchants } from "./data/enchants.js";
 import { items } from "./data/items.js";
 import { buffs } from "./data/spells.js";
-export function setupPlayer(race, stats, equipment, enchants, temporaryEnchant, buffs, log) {
+import { ModifyPowerEffect } from "./spell.js";
+export function setupPlayer(race, stats, equipment, enchants, temporaryEnchant, buffs, vael = false, log) {
     const player = new Warrior(race, stats, log);
     for (let [slot, item] of equipment) {
         player.equip(slot, item, enchants.get(slot), temporaryEnchant.get(slot));
     }
     for (let buff of buffs) {
-        player.buffManager.add(new Buff(buff.name, buff.duration, buff.stats), 0);
+        player.buffManager.add(new Buff(buff.name, buff.duration, buff.stats), -10 * 1000);
     }
-    const boss = new Unit(63, 4691 - 2250 - 640 - 505 - 600);
+    if (vael) {
+        const essenceOfTheRed = new BuffOverTime("Essence of the Red", Number.MAX_SAFE_INTEGER, undefined, 1000, new ModifyPowerEffect(20));
+        player.buffManager.add(essenceOfTheRed, Math.random() * -1000);
+    }
+    const boss = new Unit(63, 3700 - 2250 - 640 - 505);
     player.target = boss;
+    if (player.mh && player.oh && player.mh.weapon.speed === player.oh.weapon.speed) {
+        player.oh.nextSwingTime += player.oh.weapon.speed / 2 * 1000;
+    }
     return player;
 }
 export function lookupMap(slotToIndex, lookup) {

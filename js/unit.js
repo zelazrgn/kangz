@@ -15,7 +15,7 @@ export class Unit {
     }
     calculateArmorReducedDamage(damage, attacker) {
         const armor = Math.max(0, this.armor - attacker.buffManager.stats.armorPenetration);
-        let tmpvalue = 0.1 * armor / ((8.5 * attacker.level) + 40);
+        let tmpvalue = armor / ((85 * attacker.level) + 400);
         tmpvalue /= (1 + tmpvalue);
         const armorModifier = clamp(tmpvalue, 0, 0.75);
         return Math.max(1, damage - (damage * armorModifier));

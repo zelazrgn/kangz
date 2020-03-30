@@ -1,15 +1,18 @@
 import { Player, MeleeHitOutcome, Race } from "./player.js";
 import { Buff, BuffOverTime, BuffProc } from "./buff.js";
 import { Unit } from "./unit.js";
-import { Spell, LearnedSpell, SpellDamage, EffectType, SwingSpell, LearnedSwingSpell, Proc, SpellBuff, Effect, SpellBuffEffect, ModifyPowerEffect, EffectFamily } from "./spell.js";
+import { Spell, LearnedSpell, SpellDamage, EffectType, SwingSpell, LearnedSwingSpell, Proc, SpellBuff, Effect, SpellBuffEffect, ModifyPowerEffect, EffectFamily, SwingEffect } from "./spell.js";
 import { clamp } from "./math.js";
 import { StatValues, Stats } from "./stats.js";
+import { getBuff } from "./data/spells.js";
 
 const flurry = new Buff("Flurry", 15, {haste: 1.3}, true, 3, undefined, undefined, false);
 
 export const raceToStats = new Map<Race, StatValues>();
 raceToStats.set(Race.HUMAN, { maceSkill: 5, swordSkill: 5, mace2HSkill: 5, sword2HSkill: 5, str: 120, agi: 80 });
 raceToStats.set(Race.ORC, { axeSkill: 5, axe2HSkill: 5, str: 123, agi: 77 });
+raceToStats.set(Race.GNOME, { str: 115, agi: 83 });
+raceToStats.set(Race.TROLL, { str: 121, agi: 82 });
 
 export class Warrior extends Player {
     rage = 80; // TODO - allow simulation to choose starting rage
@@ -18,16 +21,19 @@ export class Warrior extends Player {
     bloodthirst = new LearnedSpell(bloodthirstSpell, this);
     hamstring = new LearnedSpell(hamstringSpell, this);
     whirlwind = new LearnedSpell(whirlwindSpell, this);
-    heroicStrike = new LearnedSwingSpell(heroicStrikeSpell, this);
+    heroicStrikeR8 = new LearnedSwingSpell(heroicStrikeR8Spell, this);
+    heroicStrikeR9 = new LearnedSwingSpell(heroicStrikeR9Spell, this);
     bloodRage = new LearnedSpell(bloodRage, this);
     deathWish = new LearnedSpell(deathWish, this);
+    recklessness = new LearnedSpell(recklessness, this);
     executeSpell = new LearnedSpell(executeSpell, this);
+    mightyRagePotion = new LearnedSpell(mightyRagePotion, this);
 
     constructor(race: Race, stats: StatValues, logCallback?: (time: number, text: string) => void) {
         super(new Stats(raceToStats.get(race)).add(stats), logCallback);
 
-        this.buffManager.add(angerManagementOT, Math.random() * -3000); // randomizing anger management timing
-        this.buffManager.add(unbridledWrath, 0);
+        this.buffManager.add(angerManagementOT, Math.random() * -3000 - 100); // randomizing anger management timing
+        this.buffManager.add(unbridledWrath, -100);
     }
 
     get power() {
@@ -92,7 +98,7 @@ export class Warrior extends Player {
                 // http://blue.mmo-champion.com/topic/69365-18-02-05-kalgans-response-to-warriors/ "since missing wastes 20% of the rage cost of the ability"
                 // TODO - not sure how blizzlike this is
                 if (effect.parent instanceof Spell && effect.parent !== whirlwindSpell) { // TODO - should check to see if it is an aoe spell or a single target spell
-                    this.rage += effect.parent.cost * 0.82;
+                    this.rage += effect.parent.cost * 0.75; // TODO: from Steppenwolf's spreedsheet, find source
                 }
             } else {
                 this.rewardRage(cleanDamage * 0.75, true, time); // TODO - where is this formula from?
@@ -105,8 +111,8 @@ export class Warrior extends Player {
         // extra attacks don't use flurry charges but they can proc flurry (tested)
         if (
             !this.doingExtraAttacks
-            && (!effect || effect.parent === heroicStrikeSpell)
-            && ![MeleeHitOutcome.MELEE_HIT_MISS, MeleeHitOutcome.MELEE_HIT_DODGE].includes(hitOutcome)
+            && (!effect || effect instanceof SwingEffect)
+            // && ![MeleeHitOutcome.MELEE_HIT_MISS, MeleeHitOutcome.MELEE_HIT_DODGE].includes(hitOutcome)
             && hitOutcome !== MeleeHitOutcome.MELEE_HIT_CRIT
         ) { 
             this.buffManager.remove(flurry, time);
@@ -119,22 +125,34 @@ export class Warrior extends Player {
     }
 }
 
-const heroicStrikeSpell = new SwingSpell("Heroic Strike", EffectFamily.WARRIOR, 157, 12);
+const heroicStrikeR8Spell = new SwingSpell("Heroic Strike", EffectFamily.WARRIOR, 138, 12);
+const heroicStrikeR9Spell = new SwingSpell("Heroic Strike", EffectFamily.WARRIOR, 157, 12);
 
 // execute actually works by casting two spells, first requires weapon but does no damage
 // second one doesn't require weapon and deals the damage.
 // LH core overrode the second spell to require weapon (benefit from weapon skill)
 const executeSpell = new SpellDamage("Execute", (player: Player) => {
     return 600 + (player.power - 10) * 15;
-}, EffectType.PHYSICAL_WEAPON, EffectFamily.WARRIOR, true, 10, 0, (player: Player, hitOutcome: MeleeHitOutcome) => {
+}, EffectType.PHYSICAL_WEAPON, EffectFamily.WARRIOR, true, 10, 0, (player: Player, hitOutcome: MeleeHitOutcome, time: number) => {
     if (![MeleeHitOutcome.MELEE_HIT_PARRY, MeleeHitOutcome.MELEE_HIT_DODGE, MeleeHitOutcome.MELEE_HIT_MISS].includes(hitOutcome)) {
-        player.power = 0;
+        // player.power = 0;
+        const nextBatch = time + Math.random() * 400;
+        player.futureEvents.push({
+            time: nextBatch,
+            callback: (player: Player) => {
+                player.power = 0;
+
+                if (player.log) {
+                    player.log(nextBatch, `Reset rage to 0 after execute, TODO (not exactly how it works)`);
+                }
+            }
+        });
     }
 });
 
 const bloodthirstSpell = new SpellDamage("Bloodthirst", (player: Player) => {
     return (<Warrior>player).ap * 0.45;
-}, EffectType.PHYSICAL, EffectFamily.WARRIOR, true, 30, 6);
+}, EffectType.PHYSICAL_WEAPON, EffectFamily.WARRIOR, true, 30, 6);
 
 const whirlwindSpell = new SpellDamage("Whirlwind", (player: Player) => {
     return player.calculateSwingRawDamage(true, true);
@@ -149,7 +167,13 @@ const bloodRage = new Spell("Bloodrage", false, 0, 60, [
     new SpellBuffEffect(new BuffOverTime("Bloodrage", 10, undefined, 1000, new ModifyPowerEffect(1)))]);
 
 const deathWish = new SpellBuff(new Buff("Death Wish", 30, { damageMult: 1.2 }), true, 10, 3 * 60);
+const recklessness = new SpellBuff(new Buff("Recklessness", 15, { crit: 100 }), true, 0, 15 * 60);
 
 // unbridled wrath only procs from autoattack/heroic strike/cleave
 const unbridledWrath = new BuffProc("Unbridled Wrath", 60 * 60,
     new Proc(new Spell("Unbridled Wrath", false, 0, 0, new ModifyPowerEffect(1)), {chance: 0.4}, true));
+
+const mightyRagePotion = new Spell("Mighty Rage Potion", false, 0, 2 * 60, [
+    new ModifyPowerEffect(45, 30),
+    new SpellBuffEffect(new Buff("Mighty Rage", 20, { str: 60 })),
+]);
