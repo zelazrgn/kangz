@@ -73,7 +73,7 @@ export function generateChooseAction(useRecklessness: boolean, useHeroicStrikeR9
 
         const heroicStrikeSpell = useHeroicStrikeR9 ? warrior.heroicStrikeR9 : warrior.heroicStrikeR8;
     
-        if (warrior.rage >= heroicStrikeSpell.spell.cost && !warrior.queuedSpell && ((heroicStrikeInExecute && executePhase) || warrior.rage >= heroicStrikeRageReq)) {
+        if ((!executePhase || heroicStrikeInExecute) &&  warrior.rage >= heroicStrikeSpell.spell.cost && !warrior.queuedSpell && warrior.rage >= heroicStrikeRageReq) {
             warrior.queuedSpell = heroicStrikeSpell;
             if (warrior.log) warrior.log(time, 'queueing heroic strike');
         }
