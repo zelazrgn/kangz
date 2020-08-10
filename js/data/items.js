@@ -29,6 +29,15 @@ export const items = [
         speed: 2.4
     },
     {
+        name: "Flurry Axe",
+        slot: ItemSlot.MAINHAND | ItemSlot.OFFHAND,
+        type: WeaponType.AXE,
+        min: 37,
+        max: 69,
+        speed: 1.5,
+        onhit: new Proc(new ExtraAttack('Ironfoe', 2), { ppm: 1.865 })
+    },
+    {
         name: "Empyrean Demolisher",
         type: WeaponType.MACE,
         slot: ItemSlot.MAINHAND,
@@ -134,9 +143,19 @@ export const items = [
         stats: { str: 21, crit: 1, hit: 1, ap: 40 }
     },
     {
+        name: "Expert Goldminer's Helmet",
+        slot: ItemSlot.HEAD,
+        stats: { agi: 5, axeSkill: 7 }
+    },
+    {
         name: "Barbed Choker",
         slot: ItemSlot.NECK,
         stats: { ap: 44, crit: 1 }
+    },
+    {
+        name: "The Eye of Hakkar",
+        slot: ItemSlot.NECK,
+        stats: { ap: 40, crit: 1 }
     },
     {
         name: "Stormrage's Talisman of Seething",
@@ -157,6 +176,11 @@ export const items = [
         name: "Conqueror's Spaulders",
         slot: ItemSlot.SHOULDER,
         stats: { str: 20, agi: 16, hit: 1 }
+    },
+    {
+        name: "Mantle of Wicked Revenge",
+        slot: ItemSlot.SHOULDER,
+        stats: { str: 16, agi: 30 }
     },
     {
         name: "Rank 10 Shoulders",
@@ -194,6 +218,11 @@ export const items = [
         stats: { ap: 20, agi: 15 }
     },
     {
+        name: "Zulian Tigerhide ",
+        slot: ItemSlot.BACK,
+        stats: { hit: 1, agi: 13 }
+    },
+    {
         name: "Drape of Unyielding Strength",
         slot: ItemSlot.BACK,
         stats: { str: 15, agi: 9, hit: 1 }
@@ -211,7 +240,7 @@ export const items = [
     {
         name: "Conqueror's Breastplate",
         slot: ItemSlot.CHEST,
-        stats: { str: 20, agi: 16, hit: 1 }
+        stats: { str: 34, agi: 24 }
     },
     {
         name: "Savage Gladiator Chain",
@@ -254,6 +283,11 @@ export const items = [
         stats: { str: 45, crit: 1, hit: 1 }
     },
     {
+        name: "Runed Bloodstained Hauberk",
+        slot: ItemSlot.CHEST,
+        stats: { ap: 58, crit: 1 }
+    },
+    {
         name: "Hive Defiler Wristguards",
         slot: ItemSlot.WRIST,
         stats: { str: 23, agi: 18 }
@@ -294,7 +328,7 @@ export const items = [
         stats: { str: 15, crit: 1, daggerSkill: 5 }
     },
     {
-        name: "Devilsaur Gauntlets",
+        name: "Devilsaur Gauntlets (+ 2 hit)",
         slot: ItemSlot.HANDS,
         stats: { ap: 28, crit: 1, hit: 2 }
     },
@@ -302,6 +336,11 @@ export const items = [
         name: "Eldritch Reinforced Legplates",
         slot: ItemSlot.LEGS,
         stats: { str: 15, agi: 9, crit: 1 }
+    },
+    {
+        name: "Abyssal Striking",
+        slot: ItemSlot.LEGS,
+        stats: { str: 15, agi: 15, crit: 1 }
     },
     {
         name: "Cloudkeeper Legplates",
@@ -327,6 +366,11 @@ export const items = [
         name: "Battlechaser's Greaves",
         slot: ItemSlot.FEET,
         stats: { str: 14, agi: 13 }
+    },
+    {
+        name: "Blooddrenched Footpads",
+        slot: ItemSlot.FEET,
+        stats: { hit: 1, agi: 21 }
     },
     {
         name: "Omokk's Girth Restrainer",
@@ -409,6 +453,11 @@ export const items = [
         stats: { ap: 22, hit: 1 }
     },
     {
+        name: "Satyr's Bow",
+        slot: ItemSlot.RANGED,
+        stats: { agi: 3, hit: 1 }
+    },
+    {
         name: "Crossbow of Imminent Doom",
         slot: ItemSlot.RANGED,
         stats: { agi: 7, str: 5, hit: 1 }
@@ -427,6 +476,21 @@ export const items = [
         name: "Gurubashi Dwarf Destroyer",
         slot: ItemSlot.RANGED,
         stats: { ap: 30 }
+    },
+    {
+        name: "Larvae of the Great Worm",
+        slot: ItemSlot.RANGED,
+        stats: { ap: 18, crit: 1 }
+    },
+    {
+        name: "Seal of Jin",
+        slot: ItemSlot.RING1 | ItemSlot.RING2,
+        stats: { ap: 20, crit: 1 }
+    },
+    {
+        name: "Band of Jin (+30 ap)",
+        slot: ItemSlot.RING1 | ItemSlot.RING2,
+        stats: { agi: 14, hit: 1, ap: 30 }
     },
     {
         name: "Tarnished Elven Ring",
@@ -474,6 +538,16 @@ export const items = [
         stats: { ap: 45, crit: 2, hit: 1 }
     },
     {
+        name: "Bloodsoaked Pauldrons",
+        slot: ItemSlot.SHOULDER,
+        stats: { agi: 11, str: 16 }
+    },
+    {
+        name: "Abyssal Shoulders Striking",
+        slot: ItemSlot.SHOULDER,
+        stats: { agi: 13, str: 13, hit: 1 }
+    },
+    {
         name: "Black Dragonscale Leggings",
         slot: ItemSlot.LEGS,
         stats: { ap: 54 }
@@ -512,6 +586,11 @@ export const items = [
         name: "Zandalar Vindicator's Armguards",
         slot: ItemSlot.WRIST,
         stats: { str: 13, agi: 13 }
+    },
+    {
+        name: "Battleborn Armbraces",
+        slot: ItemSlot.WRIST,
+        stats: { hit: 1, crit: 1 }
     },
     {
         name: "Simple Sword (2.6)",
@@ -700,12 +779,13 @@ export const items = [
         stats: { ap: 36 }
     },
     {
-        name: "Deathbringer (W/O PROC)",
+        name: "Deathbringer",
         type: WeaponType.AXE,
         slot: ItemSlot.MAINHAND | ItemSlot.OFFHAND,
         min: 114,
         max: 213,
-        speed: 2.90
+        speed: 2.90,
+        onhit: new Proc(new SpellDamage("Shadow Bolt", [110, 141], EffectType.MAGIC), { ppm: 0.820 })
     },
     {
         name: "Doom's Edge",
@@ -715,6 +795,32 @@ export const items = [
         max: 154,
         speed: 2.30,
         stats: { agi: 16, str: 9 }
+    },
+    {
+        name: "Axe of the Deep Woods",
+        type: WeaponType.AXE,
+        slot: ItemSlot.MAINHAND,
+        min: 78,
+        max: 146,
+        speed: 2.7,
+        onhit: new Proc(new SpellDamage("Wrath", [90, 127], EffectType.MAGIC), { ppm: 0.820 })
+    },
+    {
+        name: "Zulian Hacker (no raw stats)",
+        type: WeaponType.AXE,
+        slot: ItemSlot.MAINHAND | ItemSlot.OFFHAND,
+        min: 71,
+        max: 134,
+        speed: 2.40,
+        stats: { axeSkill: 2 }
+    },
+    {
+        name: "Rivenspike (no proc)",
+        type: WeaponType.AXE,
+        slot: ItemSlot.MAINHAND | ItemSlot.OFFHAND,
+        min: 77,
+        max: 144,
+        speed: 2.90
     },
     {
         name: "Mirah's Song",

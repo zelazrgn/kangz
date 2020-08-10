@@ -195,18 +195,18 @@ const DEFAULT = new Map();
 DEFAULT.set(ItemSlot.MAINHAND, ["Empyrean Demolisher", "Crusader MH", "Elemental Sharpening Stone"]);
 DEFAULT.set(ItemSlot.OFFHAND, ["Brutality Blade", "Crusader OH", "Elemental Sharpening Stone"]);
 DEFAULT.set(ItemSlot.RANGED, ["Bloodseeker"]);
-DEFAULT.set(ItemSlot.HEAD, ["Lionheart Helm"]);
+DEFAULT.set(ItemSlot.HEAD, ["Lionheart Helm", "1 Haste"]);
 DEFAULT.set(ItemSlot.NECK, ["Onyxia Tooth Pendant"]);
 DEFAULT.set(ItemSlot.SHOULDER, ["Drake Talon Pauldrons"]);
-DEFAULT.set(ItemSlot.BACK, ["Cape of the Black Baron", "3 Agility"]);
+DEFAULT.set(ItemSlot.BACK, ["Cloak of Draconic Might", "3 Agility"]);
 DEFAULT.set(ItemSlot.CHEST, ["Savage Gladiator Chain", "Greater Stats (+4)"]);
 DEFAULT.set(ItemSlot.WRIST, ["Wristguards of Stability", "9 Strength"]);
-DEFAULT.set(ItemSlot.HANDS, ["Gauntlets of Might", "1 Haste"]);
-DEFAULT.set(ItemSlot.WAIST, ["Omokk's Girth Restrainer"]);
-DEFAULT.set(ItemSlot.LEGS, ["Eldritch Reinforced Legplates"]);
+DEFAULT.set(ItemSlot.HANDS, ["Gauntlets of Annihilation", "1 Haste"]);
+DEFAULT.set(ItemSlot.WAIST, ["Onslaught Girdle"]);
+DEFAULT.set(ItemSlot.LEGS, ["Legguards of the Fallen Crusader", "1 Haste"]);
 DEFAULT.set(ItemSlot.FEET, ["Chromatic Boots", "Run Speed"]);
 DEFAULT.set(ItemSlot.RING1, ["Quick Strike Ring"]);
-DEFAULT.set(ItemSlot.RING2, ["Don Julio's Band"]);
+DEFAULT.set(ItemSlot.RING2, ["Circle of Applied Force"]);
 DEFAULT.set(ItemSlot.TRINKET1, ["Hand of Justice"]);
 DEFAULT.set(ItemSlot.TRINKET2, ["Diamond Flask"]);
 for (let [slot, [itemName, enchantName, temporaryEnchantName]] of DEFAULT) {
@@ -464,7 +464,7 @@ function saveInstantSim() {
             const crit = hitOutcomes[MeleeHitOutcome.MELEE_HIT_CRIT];
             const normal = hitOutcomes[MeleeHitOutcome.MELEE_HIT_NORMAL];
             const totalHits = miss + glance + dodge + crit + normal;
-            hitOutcomeRowEl.textContent = `${ability} miss: ${rhc(miss / totalHits)} dodge: ${rhc(dodge / totalHits)} glance: ${rhc(glance / totalHits)} crit: ${rhc(crit / totalHits)}`;
+            hitOutcomeRowEl.textContent = `${ability} (${totalHits}) miss: ${rhc(miss / totalHits)} dodge: ${rhc(dodge / totalHits)} glance: ${rhc(glance / totalHits)} crit: ${rhc(crit / totalHits)}`;
             hitOutcomesEl.appendChild(hitOutcomeRowEl);
         }
     });

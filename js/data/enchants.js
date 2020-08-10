@@ -14,6 +14,11 @@ export const enchants = [
         proc: new Proc(new SpellBuff(new Buff("Crusader OH", 15, new Stats({ str: 100 }))), { ppm: 1 }),
     },
     {
+        name: '15 Strength',
+        slot: ItemSlot.MAINHAND | ItemSlot.OFFHAND,
+        stats: { str: 15 },
+    },
+    {
         name: '8 Strength',
         slot: ItemSlot.HEAD | ItemSlot.LEGS,
         stats: { str: 8 },
